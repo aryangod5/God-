@@ -21,8 +21,14 @@ class GodCoreView @JvmOverloads constructor(
     private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val corePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val detailPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     private var animationTime = 0f
+
+    private val orange = Color.rgb(255, 145, 0)
+    private val brightOrange = Color.rgb(255, 205, 100)
+    private val blue = Color.rgb(40, 130, 255)
+    private val background = Color.rgb(2, 5, 10)
 
     init {
         setLayerType(View.LAYER_TYPE_SOFTWARE, null)
@@ -33,6 +39,11 @@ class GodCoreView @JvmOverloads constructor(
         ringPaint.style = Paint.Style.STROKE
         ringPaint.strokeCap = Paint.Cap.ROUND
 
+        detailPaint.style = Paint.Style.STROKE
+        detailPaint.strokeCap = Paint.Cap.ROUND
+
+        isClickable = true
+
         postInvalidateOnAnimation()
     }
 
@@ -42,10 +53,8 @@ class GodCoreView @JvmOverloads constructor(
         val centerX = width / 2f
         val centerY = height / 2f
 
-        /*
-         * FUTURISTIC DARK BACKGROUND
-         */
-        backgroundPaint.color = Color.rgb(3, 7, 14)
+        backgroundPaint.color = background
+
         canvas.drawRect(
             0f,
             0f,
@@ -54,171 +63,137 @@ class GodCoreView @JvmOverloads constructor(
             backgroundPaint
         )
 
-        /*
-         * BLUE FUTURISTIC ANGULAR LINES
-         */
-        drawBackgroundLines(
-            canvas,
-            centerX,
-            centerY
-        )
-
-        /*
-         * CIRCULAR GOD CORE SYSTEM
-         */
-        drawGodCore(
-            canvas,
-            centerX,
-            centerY
-        )
+        drawTechEnvironment(canvas)
+        drawHudElements(canvas, centerX, centerY)
+        drawGodCore(canvas, centerX, centerY)
 
         animationTime += 0.025f
-
         postInvalidateOnAnimation()
     }
 
-    private fun drawBackgroundLines(
-        canvas: Canvas,
-        centerX: Float,
-        centerY: Float
-    ) {
+    private fun drawTechEnvironment(canvas: Canvas) {
 
-        linePaint.color = Color.rgb(25, 130, 255)
-        linePaint.alpha = 75
-        linePaint.strokeWidth = 2f
+        linePaint.color = orange
+        linePaint.strokeWidth = 1.5f
+        linePaint.alpha = 45
 
-        val spacing = 85f
+        val horizontalSpacing = 95f
 
-        /*
-         * Horizontal technical lines
-         */
-        var y = 40f
+        var y = 20f
 
         while (y < height) {
 
-            val offset =
-                sin(animationTime * 0.4f + y * 0.01f) * 8f
+            val movement =
+                sin(animationTime * 0.5f + y * 0.01f) * 5f
 
             canvas.drawLine(
                 0f,
-                y + offset,
+                y + movement,
                 width.toFloat(),
-                y + offset,
+                y + movement,
                 linePaint
             )
 
-            y += spacing
+            y += horizontalSpacing
         }
 
-        /*
-         * Diagonal technical lines
-         */
-        for (i in -5..12) {
+        for (i in -6..12) {
 
             val startX =
-                i * 100f -
-                        (animationTime * 15f % 100f)
+                i * 115f -
+                        (animationTime * 12f % 115f)
 
             val path = Path()
 
-            path.moveTo(
-                startX,
-                0f
-            )
+            path.moveTo(startX, 0f)
 
             path.lineTo(
-                startX + 70f,
+                startX + 65f,
                 height * 0.25f
             )
 
             path.lineTo(
-                startX - 20f,
+                startX - 25f,
                 height * 0.5f
             )
 
             path.lineTo(
-                startX + 90f,
+                startX + 80f,
                 height * 0.75f
             )
 
             path.lineTo(
-                startX + 20f,
+                startX + 15f,
                 height.toFloat()
             )
 
-            canvas.drawPath(
-                path,
-                linePaint
-            )
+            canvas.drawPath(path, linePaint)
         }
 
-        /*
-         * Small HUD-style markers
-         */
-        for (i in 0 until 12) {
+        detailPaint.color = orange
+
+        for (i in 0 until 14) {
 
             val x =
-                (i * 137f + animationTime * 10f) %
-                        width
+                (i * 151f +
+                        animationTime * 15f) %
+                        width.coerceAtLeast(1)
 
-            val markerY =
-                60f +
-                        ((i * 97f) % maxOf(height - 120, 1).toFloat())
+            val yPosition =
+                50f +
+                        ((i * 83f) %
+                                height.coerceAtLeast(100))
 
-            linePaint.alpha = 110
-            linePaint.strokeWidth = 2f
+            detailPaint.alpha = 75
 
             canvas.drawLine(
                 x,
-                markerY,
-                x + 35f,
-                markerY,
-                linePaint
+                yPosition,
+                x + 32f,
+                yPosition,
+                detailPaint
             )
 
             canvas.drawLine(
-                x + 35f,
-                markerY,
-                x + 48f,
-                markerY - 12f,
-                linePaint
+                x + 32f,
+                yPosition,
+                x + 44f,
+                yPosition - 10f,
+                detailPaint
             )
         }
     }
 
-    private fun drawGodCore(
+    private fun drawHudElements(
         canvas: Canvas,
         centerX: Float,
         centerY: Float
     ) {
 
         val baseRadius =
-            minOf(width, height) * 0.20f
+            minOf(width, height) * 0.19f
 
-        /*
-         * Animated circular energy rings
-         */
-        for (i in 0 until 6) {
+        for (i in 0 until 7) {
 
             val pulse =
                 sin(
-                    animationTime * 2f +
-                            i * 0.8f
+                    animationTime * 1.8f +
+                            i * 0.65f
                 )
 
             val radius =
                 baseRadius +
-                        i * 22f +
-                        pulse * 8f
+                        i * 23f +
+                        pulse * 7f
 
-            ringPaint.color =
-                Color.rgb(30, 150, 255)
+            ringPaint.color = orange
 
             ringPaint.alpha =
-                (45 + i * 8).coerceAtMost(100)
+                (30 + i * 8)
+                    .coerceAtMost(90)
 
             ringPaint.strokeWidth =
-                if (i == 0) 3f else 2f
+                if (i == 0) 3f else 1.5f
 
             canvas.drawCircle(
                 centerX,
@@ -228,11 +203,79 @@ class GodCoreView @JvmOverloads constructor(
             )
         }
 
-        /*
-         * Orange energy lines around the core
-         */
-        linePaint.color =
-            Color.rgb(255, 145, 0)
+        // Small rotating HUD segments
+
+        detailPaint.color = orange
+
+        for (i in 0 until 24) {
+
+            val angle =
+                animationTime * 0.25f +
+                        i * Math.PI * 2.0 / 24.0
+
+            val inner =
+                baseRadius + 155f
+
+            val outer =
+                inner + 12f
+
+            val x1 =
+                centerX +
+                        cos(angle).toFloat() * inner
+
+            val y1 =
+                centerY +
+                        sin(angle).toFloat() * inner
+
+            val x2 =
+                centerX +
+                        cos(angle).toFloat() * outer
+
+            val y2 =
+                centerY +
+                        sin(angle).toFloat() * outer
+
+            detailPaint.alpha =
+                if (i % 3 == 0) 130 else 55
+
+            detailPaint.strokeWidth =
+                if (i % 3 == 0) 3f else 1.5f
+
+            canvas.drawLine(
+                x1,
+                y1,
+                x2,
+                y2,
+                detailPaint
+            )
+        }
+
+        // Minimal blue accent ring
+
+        ringPaint.color = blue
+        ringPaint.alpha = 80
+        ringPaint.strokeWidth = 1.5f
+
+        canvas.drawCircle(
+            centerX,
+            centerY,
+            baseRadius + 105f,
+            ringPaint
+        )
+    }
+
+    private fun drawGodCore(
+        canvas: Canvas,
+        centerX: Float,
+        centerY: Float
+    ) {
+
+        val baseRadius =
+            minOf(width, height) * 0.19f
+
+        // Animated energy rays
+
+        linePaint.color = orange
 
         for (i in 0 until 72) {
 
@@ -242,17 +285,17 @@ class GodCoreView @JvmOverloads constructor(
             val wave =
                 sin(
                     animationTime * 3f +
-                            i * 0.65f
+                            i * 0.62f
                 )
 
             val innerRadius =
                 baseRadius +
-                        wave * 12f
+                        wave * 10f
 
             val outerRadius =
                 innerRadius +
-                        25f +
-                        wave * 18f
+                        22f +
+                        wave * 17f
 
             val startX =
                 centerX +
@@ -275,14 +318,13 @@ class GodCoreView @JvmOverloads constructor(
                         outerRadius
 
             linePaint.alpha =
-                (90 +
-                        wave * 70)
+                (70 + wave * 80)
                     .toInt()
-                    .coerceIn(25, 160)
+                    .coerceIn(20, 155)
 
             linePaint.strokeWidth =
                 1.5f +
-                        (wave + 1f) * 0.8f
+                        (wave + 1f) * 0.7f
 
             canvas.drawLine(
                 startX,
@@ -293,9 +335,8 @@ class GodCoreView @JvmOverloads constructor(
             )
         }
 
-        /*
-         * Orange glow
-         */
+        // Orange atmospheric glow
+
         val glowRadius =
             baseRadius *
                     (0.9f +
@@ -306,11 +347,42 @@ class GodCoreView @JvmOverloads constructor(
             RadialGradient(
                 centerX,
                 centerY,
-                glowRadius * 1.8f,
+                glowRadius * 2.2f,
                 intArrayOf(
-                    Color.rgb(255, 220, 130),
-                    Color.rgb(255, 140, 0),
+                    brightOrange,
+                    orange,
+                    Color.argb(80, 255, 100, 0),
                     Color.TRANSPARENT
+                ),
+                floatArrayOf(
+                    0f,
+                    0.25f,
+                    0.55f,
+                    1f
+                ),
+                Shader.TileMode.CLAMP
+            )
+
+        canvas.drawCircle(
+            centerX,
+            centerY,
+            glowRadius * 2.2f,
+            corePaint
+        )
+
+        corePaint.shader = null
+
+        // Main GOD energy sphere
+
+        corePaint.shader =
+            RadialGradient(
+                centerX - baseRadius * 0.25f,
+                centerY - baseRadius * 0.25f,
+                baseRadius,
+                intArrayOf(
+                    Color.rgb(255, 245, 200),
+                    orange,
+                    Color.rgb(190, 65, 0)
                 ),
                 floatArrayOf(
                     0f,
@@ -323,36 +395,26 @@ class GodCoreView @JvmOverloads constructor(
         canvas.drawCircle(
             centerX,
             centerY,
-            glowRadius * 1.8f,
+            baseRadius * 0.18f,
             corePaint
         )
 
         corePaint.shader = null
 
-        /*
-         * Small orange GOD core
-         */
-        corePaint.color =
-            Color.rgb(255, 145, 0)
+        // Bright center
+
+        corePaint.color = brightOrange
 
         canvas.drawCircle(
             centerX,
             centerY,
-            baseRadius * 0.16f,
+            baseRadius * 0.065f,
             corePaint
         )
+    }
 
-        /*
-         * Bright center
-         */
-        corePaint.color =
-            Color.rgb(255, 235, 180)
-
-        canvas.drawCircle(
-            centerX,
-            centerY,
-            baseRadius * 0.06f,
-            corePaint
-        )
+    override fun performClick(): Boolean {
+        super.performClick()
+        return true
     }
 }
