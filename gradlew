@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/bin/sh
 
 #
 # Copyright 2015 the original author or authors.
@@ -82,7 +82,6 @@ esac
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
-
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
     if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
@@ -115,7 +114,7 @@ if ! "$cygwin" && ! "$darwin" && ! "$nonstop" ; then
         MAX_FD_LIMIT=$MAX_FD
         ;;
     esac
-    ulimit -n $MAX_FD_LIMIT
+    ulimit -n $MAX_FD_LIMIT || warn "Could not set maximum file descriptors to $MAX_FD_LIMIT"
 fi
 
 # Collect all arguments for the java command, stacking in reverse order:
@@ -134,7 +133,8 @@ if "$cygwin" || "$msys" ; then
     JAVACMD=$( cygpath --unix "$JAVACMD" )
 
     # Now convert the arguments - kludge to limit ourselves to /bin/sh
-    for arg do
+    i=0
+    for arg in "$@" ; do
         if
             case $arg in                                #(
               -*)   false ;;                            # don't mess with options #(
@@ -147,6 +147,7 @@ if "$cygwin" || "$msys" ; then
         fi
         arg=$( printf '%s\n' "$arg" | sed "s/'/'\\\\''/g" )
         printf '%s\n' "$arg"
+        i=$((i+1))
     done |
     tr '\n' ' '
     echo " "
@@ -171,26 +172,5 @@ set -- \
 # we are hitting the xargs limit (this is a smaller default) in Solaris,
 # leaving m, r, or s as the next option to process.
 # We multiply by 2 extra to accommodate for any in-flight executable objects.
-xl=$((${#+}))
-n=$(( (${#}) / 2 + 1 ))
-for (( i = 1; i <= n; i++ )) # conservative loop
-do
-    case ${BASH_SOURCE[ $i ]} in #(
-      *rarities.sh) :
-        ;;
-      *)
-        break
-    esac
-done
-mapfile -t ARGS < <( printf '%s\n' "$@" | xargs -n$((($# / $n) + 1)) )
-# Add the leading space to preserve quoting of $ARGS
-set -- "${ARGS[@]}" "$@"
 
-# Use "xargs" to parse quoted args.
-#
-# With -n 1 it outputs one arg per line, wrapped in single quotes and preceded
-# with a space. This process back-translates into single-quoted args and prepends
-# the command name.
-eval "set -- $(printf '%s\n' "$@" | xargs -n1 | sed 's/^/"/;s/$/"/' | tr '\n' ' ')" -- >/dev/null
-shift
 exec "$JAVACMD" "$@"
