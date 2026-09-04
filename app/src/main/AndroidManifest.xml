@@ -2,69 +2,34 @@
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- ========================= -->
-    <!-- INTERNET / AI / WEB ACCESS -->
-    <!-- ========================= -->
-
-    <!-- Required for AI APIs and current-information/web features -->
+    <!-- Internet / AI API / web features -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- ========================= -->
-    <!-- MICROPHONE / VOICE        -->
-    <!-- ========================= -->
-
-    <!-- Used for voice commands and speech recognition -->
+    <!-- Voice assistant -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
-    <!-- ========================= -->
-    <!-- NOTIFICATIONS              -->
-    <!-- ========================= -->
+    <!-- Camera and image understanding -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
-    <!-- Used for GOD notifications and foreground services on newer Android versions -->
+    <!-- Notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- ========================= -->
-    <!-- FILE ACCESS                -->
-    <!-- ========================= -->
-
-    <!-- Legacy external-storage access for older Android versions -->
+    <!-- File access for older Android versions -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
-    <!-- ========================= -->
-    <!-- CAMERA                     -->
-    <!-- ========================= -->
-
-    <!-- Used for camera/image understanding features -->
-    <uses-permission android:name="android.permission.CAMERA" />
-
-    <!-- ========================= -->
-    <!-- FOREGROUND SERVICES       -->
-    <!-- ========================= -->
-
-    <!-- Allows long-running voice/assistant work when Android permits it -->
+    <!-- Foreground voice-assistant service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-
-    <!-- Required for microphone foreground-service operation on supported Android versions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
-    <!-- ========================= -->
-    <!-- APP INFORMATION            -->
-    <!-- ========================= -->
-
-    <!-- Allows the app to determine compatible launchable apps.
-         Actual app launching will use Android's official Intent APIs. -->
+    <!-- Allow GOD to discover launchable installed apps -->
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
     </queries>
-
-    <!-- ========================= -->
-    <!-- APPLICATION                -->
-    <!-- ========================= -->
 
     <application
         android:allowBackup="true"
@@ -73,10 +38,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.GOD">
 
-        <!-- ========================= -->
-        <!-- MAIN GOD ACTIVITY          -->
-        <!-- ========================= -->
-
+        <!-- Main GOD screen -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -87,6 +49,11 @@
             </intent-filter>
 
         </activity>
+
+        <!-- AI Provider / API configuration screen -->
+        <activity
+            android:name=".AIProviderActivity"
+            android:exported="false" />
 
     </application>
 
