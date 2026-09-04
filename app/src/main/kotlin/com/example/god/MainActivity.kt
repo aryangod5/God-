@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -47,9 +48,15 @@ class MainActivity : AppCompatActivity() {
                         Intent.FLAG_GRANT_READ_URI_PERMISSION
                     )
 
-                    getSharedPreferences(preferencesName, MODE_PRIVATE)
+                    getSharedPreferences(
+                        preferencesName,
+                        MODE_PRIVATE
+                    )
                         .edit()
-                        .putString("authorized_folder", uri.toString())
+                        .putString(
+                            "authorized_folder",
+                            uri.toString()
+                        )
                         .apply()
 
                     Toast.makeText(
@@ -72,9 +79,16 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         val preferences =
-            getSharedPreferences(preferencesName, MODE_PRIVATE)
+            getSharedPreferences(
+                preferencesName,
+                MODE_PRIVATE
+            )
 
-        if (!preferences.getBoolean("setup_complete", false)) {
+        if (!preferences.getBoolean(
+                "setup_complete",
+                false
+            )
+        ) {
             showInitialSetup()
         } else {
             showGodHome()
@@ -102,8 +116,7 @@ class MainActivity : AppCompatActivity() {
         val description = TextView(this).apply {
             text =
                 "\nWelcome, Master.\n\n" +
-                "Let's complete the initial GOD setup.\n\n" +
-                "First we will check the permissions and security options GOD can use on this device."
+                "Let's complete the initial GOD setup."
             textSize = 18f
             gravity = Gravity.CENTER
         }
@@ -145,9 +158,15 @@ class MainActivity : AppCompatActivity() {
 
             setOnClickListener {
 
-                getSharedPreferences(preferencesName, MODE_PRIVATE)
+                getSharedPreferences(
+                    preferencesName,
+                    MODE_PRIVATE
+                )
                     .edit()
-                    .putBoolean("setup_complete", true)
+                    .putBoolean(
+                        "setup_complete",
+                        true
+                    )
                     .apply()
 
                 showGodHome()
@@ -165,18 +184,33 @@ class MainActivity : AppCompatActivity() {
 
         val permissions = mutableListOf<String>()
 
-        permissions.add(Manifest.permission.RECORD_AUDIO)
-        permissions.add(Manifest.permission.CAMERA)
+        permissions.add(
+            Manifest.permission.RECORD_AUDIO
+        )
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        permissions.add(
+            Manifest.permission.CAMERA
+        )
+
+        if (Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.TIRAMISU
+        ) {
+            permissions.add(
+                Manifest.permission.POST_NOTIFICATIONS
+            )
         }
 
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
-            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        if (Build.VERSION.SDK_INT <=
+            Build.VERSION_CODES.S_V2
+        ) {
+            permissions.add(
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            )
         }
 
-        permissionLauncher.launch(permissions.toTypedArray())
+        permissionLauncher.launch(
+            permissions.toTypedArray()
+        )
     }
 
     private fun setupBiometric() {
@@ -199,12 +233,16 @@ class MainActivity : AppCompatActivity() {
                     BiometricPrompt(
                         this,
                         executor,
-                        object : BiometricPrompt.AuthenticationCallback() {
+                        object :
+                            BiometricPrompt.AuthenticationCallback() {
 
-                            override fun onAuthenticationSucceeded(
+                            override fun
+                                onAuthenticationSucceeded(
                                 result: BiometricPrompt.AuthenticationResult
                             ) {
-                                super.onAuthenticationSucceeded(result)
+                                super.onAuthenticationSucceeded(
+                                    result
+                                )
 
                                 getSharedPreferences(
                                     preferencesName,
@@ -224,7 +262,8 @@ class MainActivity : AppCompatActivity() {
                                 ).show()
                             }
 
-                            override fun onAuthenticationError(
+                            override fun
+                                onAuthenticationError(
                                 errorCode: Int,
                                 errString: CharSequence
                             ) {
@@ -245,11 +284,15 @@ class MainActivity : AppCompatActivity() {
                 val promptInfo =
                     BiometricPrompt.PromptInfo.Builder()
                         .setTitle("GOD Security")
-                        .setSubtitle("Confirm your fingerprint or face")
+                        .setSubtitle(
+                            "Confirm your fingerprint or face"
+                        )
                         .setNegativeButtonText("Cancel")
                         .build()
 
-                biometricPrompt.authenticate(promptInfo)
+                biometricPrompt.authenticate(
+                    promptInfo
+                )
             }
 
             else -> {
@@ -264,47 +307,96 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openFolderPicker() {
-
         folderLauncher.launch(null)
     }
 
     private fun showGodHome() {
 
-        val scrollView = ScrollView(this)
-
-        val layout = LinearLayout(this).apply {
+        val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(35, 50, 35, 50)
+            setBackgroundColor(
+                android.graphics.Color.rgb(
+                    3,
+                    7,
+                    14
+                )
+            )
         }
 
+        /*
+         * GOD title
+         */
         val title = TextView(this).apply {
-            text = "GOD"
-            textSize = 42f
+            text = "G O D"
+            textSize = 30f
             gravity = Gravity.CENTER
+            setTextColor(
+                android.graphics.Color.WHITE
+            )
+            setPadding(
+                0,
+                35,
+                0,
+                5
+            )
         }
 
-        layout.addView(title)
+        root.addView(title)
 
-        val greeting = TextView(this).apply {
-            text = "\nHello, Master."
-            textSize = 21f
-            gravity = Gravity.CENTER
-        }
-
-        layout.addView(greeting)
-
+        /*
+         * Online status
+         */
         val status = TextView(this).apply {
-            text = "\nGOD is ready."
-            textSize = 17f
+            text = "●  GOD ONLINE"
+            textSize = 15f
             gravity = Gravity.CENTER
+            setTextColor(
+                android.graphics.Color.rgb(
+                    70,
+                    180,
+                    255
+                )
+            )
+            setPadding(
+                0,
+                0,
+                0,
+                10
+            )
         }
 
-        layout.addView(status)
+        root.addView(status)
+
+        /*
+         * Animated GOD Core
+         */
+        val godCore = GodCoreView(this)
+
+        root.addView(
+            godCore,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        )
+
+        /*
+         * Bottom controls
+         */
+        val controls = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(
+                25,
+                10,
+                25,
+                25
+            )
+        }
 
         addModuleButton(
-            layout,
-            "Voice Assistant"
+            controls,
+            "VOICE"
         ) {
             Toast.makeText(
                 this,
@@ -314,19 +406,19 @@ class MainActivity : AppCompatActivity() {
         }
 
         addModuleButton(
-            layout,
-            "AI Chat"
+            controls,
+            "CHAT"
         ) {
             Toast.makeText(
                 this,
-                "AI Chat will use your configured AI provider.",
+                "AI Chat will be connected next.",
                 Toast.LENGTH_SHORT
             ).show()
         }
 
         addModuleButton(
-            layout,
-            "Apps"
+            controls,
+            "APPS"
         ) {
             Toast.makeText(
                 this,
@@ -336,8 +428,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         addModuleButton(
-            layout,
-            "Files"
+            controls,
+            "FILES"
         ) {
             Toast.makeText(
                 this,
@@ -347,30 +439,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         addModuleButton(
-            layout,
-            "Documents"
-        ) {
-            Toast.makeText(
-                this,
-                "Document tools will be connected next.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-
-        addModuleButton(
-            layout,
-            "3D"
-        ) {
-            Toast.makeText(
-                this,
-                "3D tools will be connected next.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-
-        addModuleButton(
-            layout,
-            "Memory"
+            controls,
+            "MEMORY"
         ) {
             Toast.makeText(
                 this,
@@ -380,15 +450,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         addModuleButton(
-            layout,
-            "Settings"
+            controls,
+            "SETTINGS"
         ) {
             showSettings()
         }
 
-        scrollView.addView(layout)
+        root.addView(controls)
 
-        setContentView(scrollView)
+        setContentView(root)
     }
 
     private fun addModuleButton(
@@ -399,12 +469,19 @@ class MainActivity : AppCompatActivity() {
 
         val button = Button(this).apply {
             this.text = text
+
             setOnClickListener {
                 action()
             }
         }
 
-        layout.addView(button)
+        layout.addView(
+            button,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
     }
 
     private fun showSettings() {
@@ -413,7 +490,12 @@ class MainActivity : AppCompatActivity() {
 
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(35, 50, 35, 50)
+            setPadding(
+                35,
+                50,
+                35,
+                50
+            )
         }
 
         val title = TextView(this).apply {
@@ -429,11 +511,10 @@ class MainActivity : AppCompatActivity() {
 
             setOnClickListener {
 
-                val intent =
-                    Intent(
-                        this@MainActivity,
-                        AIProviderActivity::class.java
-                    )
+                val intent = Intent(
+                    this@MainActivity,
+                    AIProviderActivity::class.java
+                )
 
                 startActivity(intent)
             }
@@ -481,7 +562,10 @@ class MainActivity : AppCompatActivity() {
                     MODE_PRIVATE
                 )
                     .edit()
-                    .putBoolean("setup_complete", false)
+                    .putBoolean(
+                        "setup_complete",
+                        false
+                    )
                     .apply()
 
                 showInitialSetup()
@@ -512,7 +596,9 @@ class MainActivity : AppCompatActivity() {
         )
 
         intent.data =
-            Uri.parse("package:$packageName")
+            Uri.parse(
+                "package:$packageName"
+            )
 
         startActivity(intent)
     }
