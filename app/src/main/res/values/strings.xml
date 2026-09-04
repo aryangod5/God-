@@ -1,5 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
+    <!-- App identity -->
     <string name="app_name">GOD</string>
-    <string name="hello_world">Hello World! This is GOD.</string>
+
+    <!-- Main interface -->
+    <string name="god_title">GOD</string>
+    <string name="god_greeting">Hello, Master.</string>
+    <string name="god_ready">GOD is ready.</string>
+
+    <!-- Setup -->
+    <string name="setup_title">GOD Initial Setup</string>
+    <string name="setup_permissions">Set Up Permissions</string>
+    <string name="setup_biometrics">Set Up Fingerprint / Face Security</string>
+    <string name="setup_folder">Authorize File Folder</string>
+    <string name="setup_optional">Optional Permissions</string>
+    <string name="setup_finish">Finish GOD Setup</string>
+
+    <!-- Main modules -->
+    <string name="module_voice">Voice Assistant</string>
+    <string name="module_chat">AI Chat</string>
+    <string name="module_apps">Apps</string>
+    <string name="module_files">Files</string>
+    <string name="module_documents">Documents</string>
+    <string name="module_3d">3D</string>
+    <string name="module_memory">Memory</string>
+    <string name="module_settings">Settings</string>
+
+    <!-- Settings -->
+    <string name="settings_title">GOD Settings</string>
+    <string name="settings_ai">AI Provider / API</string>
+    <string name="settings_security">Security &amp; Biometrics</string>
+    <string name="settings_folder">Authorized Folder</string>
+    <string name="settings_permissions">Permission Settings</string>
+    <string name="settings_reset">Run Initial Setup Again</string>
+    <string name="settings_back">Back to GOD</string>
+
+    <!-- AI -->
+    <string name="ai_provider">AI Provider</string>
+    <string name="ai_api_key">API Key</string>
+    <string name="ai_endpoint">API Endpoint</string>
+    <string name="ai_model">Model Name</string>
+    <string name="ai_test">Test Connection</string>
+    <string name="ai_save">Save AI Configuration</string>
+
 </resources>
