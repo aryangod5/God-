@@ -1,605 +1,791 @@
 package com.example.god
 
 import android.Manifest
-import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
-import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat as AndroidContextCompat
 
 class MainActivity : AppCompatActivity() {
 
-    private val preferencesName = "GOD_SETTINGS"
+    private val blue = Color.rgb(30, 150, 255)
+    private val brightBlue = Color.rgb(80, 190, 255)
+    private val orange = Color.rgb(255, 145, 0)
+    private val white = Color.rgb(225, 240, 255)
+    private val dark = Color.rgb(3, 7, 14)
 
-    private val permissionLauncher =
-        registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) {
-            Toast.makeText(
-                this,
-                "Permission setup checked.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+    private lateinit var rootLayout: LinearLayout
 
-    private val folderLauncher =
-        registerForActivityResult(
-            ActivityResultContracts.OpenDocumentTree()
-        ) { uri: Uri? ->
-
-            if (uri != null) {
-                try {
-                    contentResolver.takePersistableUriPermission(
-                        uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-
-                    getSharedPreferences(
-                        preferencesName,
-                        MODE_PRIVATE
-                    )
-                        .edit()
-                        .putString(
-                            "authorized_folder",
-                            uri.toString()
-                        )
-                        .apply()
-
-                    Toast.makeText(
-                        this,
-                        "Folder authorized for GOD.",
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-                } catch (e: Exception) {
-                    Toast.makeText(
-                        this,
-                        "Could not authorize this folder.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        }
+    private val setupPreferences by lazy {
+        getSharedPreferences("GOD_SETUP", MODE_PRIVATE)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val preferences =
-            getSharedPreferences(
-                preferencesName,
-                MODE_PRIVATE
-            )
-
-        if (!preferences.getBoolean(
-                "setup_complete",
-                false
-            )
-        ) {
-            showInitialSetup()
-        } else {
+        if (setupPreferences.getBoolean("setup_complete", false)) {
             showGodHome()
+        } else {
+            showSetupScreen()
         }
     }
 
-    private fun showInitialSetup() {
+    // ============================================================
+    // GOD HOME
+    // ============================================================
 
-        val scrollView = ScrollView(this)
+    private fun showGodHome() {
 
-        val layout = LinearLayout(this).apply {
+        rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(35, 50, 35, 50)
+            setBackgroundColor(dark)
+        }
+
+        /*
+         * TOP BAR
+         */
+
+        val topBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(18, 18, 18, 10)
+        }
+
+        val menuButton = TextView(this).apply {
+            text = "⋮"
+            textSize = 32f
+            setTextColor(white)
+            gravity = Gravity.CENTER
+            setPadding(18, 0, 18, 0)
+
+            setOnClickListener {
+                showGodMenu()
+            }
         }
 
         val title = TextView(this).apply {
             text = "GOD"
-            textSize = 42f
+            textSize = 22f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(orange)
             gravity = Gravity.CENTER
         }
 
-        layout.addView(title)
-
-        val description = TextView(this).apply {
-            text =
-                "\nWelcome, Master.\n\n" +
-                "Let's complete the initial GOD setup."
-            textSize = 18f
-            gravity = Gravity.CENTER
-        }
-
-        layout.addView(description)
-
-        val permissionsButton = Button(this).apply {
-            text = "1. Set Up Permissions"
-
-            setOnClickListener {
-                requestPermissionsForGod()
-            }
-        }
-
-        layout.addView(permissionsButton)
-
-        val biometricButton = Button(this).apply {
-            text = "2. Set Up Fingerprint / Face Security"
-
-            setOnClickListener {
-                setupBiometric()
-            }
-        }
-
-        layout.addView(biometricButton)
-
-        val folderButton = Button(this).apply {
-            text = "3. Authorize File Folder"
-
-            setOnClickListener {
-                openFolderPicker()
-            }
-        }
-
-        layout.addView(folderButton)
-
-        val finishButton = Button(this).apply {
-            text = "Finish GOD Setup"
-
-            setOnClickListener {
-
-                getSharedPreferences(
-                    preferencesName,
-                    MODE_PRIVATE
-                )
-                    .edit()
-                    .putBoolean(
-                        "setup_complete",
-                        true
-                    )
-                    .apply()
-
-                showGodHome()
-            }
-        }
-
-        layout.addView(finishButton)
-
-        scrollView.addView(layout)
-
-        setContentView(scrollView)
-    }
-
-    private fun requestPermissionsForGod() {
-
-        val permissions = mutableListOf<String>()
-
-        permissions.add(
-            Manifest.permission.RECORD_AUDIO
+        val titleParams = LinearLayout.LayoutParams(
+            0,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            1f
         )
 
-        permissions.add(
-            Manifest.permission.CAMERA
-        )
+        topBar.addView(menuButton)
+        topBar.addView(title, titleParams)
 
-        if (Build.VERSION.SDK_INT >=
-            Build.VERSION_CODES.TIRAMISU
-        ) {
-            permissions.add(
-                Manifest.permission.POST_NOTIFICATIONS
-            )
-        }
+        /*
+         * CORE AREA
+         */
 
-        if (Build.VERSION.SDK_INT <=
-            Build.VERSION_CODES.S_V2
-        ) {
-            permissions.add(
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            )
-        }
-
-        permissionLauncher.launch(
-            permissions.toTypedArray()
-        )
-    }
-
-    private fun setupBiometric() {
-
-        val biometricManager =
-            BiometricManager.from(this)
-
-        when (
-            biometricManager.canAuthenticate(
-                BiometricManager.Authenticators.BIOMETRIC_STRONG
-            )
-        ) {
-
-            BiometricManager.BIOMETRIC_SUCCESS -> {
-
-                val executor =
-                    ContextCompat.getMainExecutor(this)
-
-                val biometricPrompt =
-                    BiometricPrompt(
-                        this,
-                        executor,
-                        object :
-                            BiometricPrompt.AuthenticationCallback() {
-
-                            override fun
-                                onAuthenticationSucceeded(
-                                result: BiometricPrompt.AuthenticationResult
-                            ) {
-                                super.onAuthenticationSucceeded(
-                                    result
-                                )
-
-                                getSharedPreferences(
-                                    preferencesName,
-                                    MODE_PRIVATE
-                                )
-                                    .edit()
-                                    .putBoolean(
-                                        "biometric_enabled",
-                                        true
-                                    )
-                                    .apply()
-
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "Biometric security is ready.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-
-                            override fun
-                                onAuthenticationError(
-                                errorCode: Int,
-                                errString: CharSequence
-                            ) {
-                                super.onAuthenticationError(
-                                    errorCode,
-                                    errString
-                                )
-
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "Biometric setup cancelled.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                    )
-
-                val promptInfo =
-                    BiometricPrompt.PromptInfo.Builder()
-                        .setTitle("GOD Security")
-                        .setSubtitle(
-                            "Confirm your fingerprint or face"
-                        )
-                        .setNegativeButtonText("Cancel")
-                        .build()
-
-                biometricPrompt.authenticate(
-                    promptInfo
-                )
-            }
-
-            else -> {
-
-                Toast.makeText(
-                    this,
-                    "Strong biometric authentication is not available on this device.",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-    }
-
-    private fun openFolderPicker() {
-        folderLauncher.launch(null)
-    }
-
-    private fun showGodHome() {
-
-        val root = LinearLayout(this).apply {
+        val coreContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(
-                android.graphics.Color.rgb(
-                    3,
-                    7,
-                    14
-                )
-            )
-        }
-
-        /*
-         * GOD title
-         */
-        val title = TextView(this).apply {
-            text = "G O D"
-            textSize = 30f
             gravity = Gravity.CENTER
-            setTextColor(
-                android.graphics.Color.WHITE
-            )
-            setPadding(
-                0,
-                35,
-                0,
-                5
-            )
         }
 
-        root.addView(title)
+        val core = GodCoreView(this)
+
+        val coreParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0,
+            1f
+        )
+
+        coreContainer.addView(core, coreParams)
 
         /*
-         * Online status
+         * STATUS
          */
+
         val status = TextView(this).apply {
-            text = "●  GOD ONLINE"
+            text = "GOD • ONLINE"
             textSize = 15f
+            setTextColor(brightBlue)
             gravity = Gravity.CENTER
-            setTextColor(
-                android.graphics.Color.rgb(
-                    70,
-                    180,
-                    255
-                )
-            )
-            setPadding(
-                0,
-                0,
-                0,
-                10
-            )
+            setPadding(0, 0, 0, 12)
         }
 
-        root.addView(status)
-
         /*
-         * Animated GOD Core
+         * TEXT INPUT
          */
-        val godCore = GodCoreView(this)
 
-        root.addView(
-            godCore,
+        val inputBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(18, 8, 18, 18)
+        }
+
+        val messageBox = TextView(this).apply {
+            text = "Tap the GOD Core to speak"
+            textSize = 15f
+            setTextColor(Color.rgb(150, 180, 210))
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(20, 18, 20, 18)
+            background = roundedBackground(
+                Color.rgb(8, 20, 35),
+                Color.rgb(25, 100, 180),
+                24f
+            )
+
+            setOnClickListener {
+                showTextInput()
+            }
+        }
+
+        val messageParams = LinearLayout.LayoutParams(
+            0,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            1f
+        )
+
+        inputBar.addView(messageBox, messageParams)
+
+        rootLayout.addView(
+            topBar,
             LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        rootLayout.addView(
+            coreContainer,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
                 1f
             )
         )
 
+        rootLayout.addView(status)
+
+        rootLayout.addView(inputBar)
+
+        setContentView(rootLayout)
+
         /*
-         * Bottom controls
+         * TAP CORE = VOICE
          */
-        val controls = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(
-                25,
-                10,
-                25,
-                25
-            )
+
+        core.setOnClickListener {
+            startVoiceMode()
         }
-
-        addModuleButton(
-            controls,
-            "VOICE"
-        ) {
-            Toast.makeText(
-                this,
-                "Voice Assistant will be connected next.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-
-        addModuleButton(
-            controls,
-            "CHAT"
-        ) {
-            Toast.makeText(
-                this,
-                "AI Chat will be connected next.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-
-        addModuleButton(
-            controls,
-            "APPS"
-        ) {
-            Toast.makeText(
-                this,
-                "App control will be connected next.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-
-        addModuleButton(
-            controls,
-            "FILES"
-        ) {
-            Toast.makeText(
-                this,
-                "File access will be connected next.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-
-        addModuleButton(
-            controls,
-            "MEMORY"
-        ) {
-            Toast.makeText(
-                this,
-                "Memory will be connected next.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-
-        addModuleButton(
-            controls,
-            "SETTINGS"
-        ) {
-            showSettings()
-        }
-
-        root.addView(controls)
-
-        setContentView(root)
     }
 
-    private fun addModuleButton(
-        layout: LinearLayout,
-        text: String,
+    // ============================================================
+    // FUTURISTIC MENU
+    // ============================================================
+
+    private fun showGodMenu() {
+
+        val scroll = ScrollView(this).apply {
+            setBackgroundColor(dark)
+        }
+
+        val menu = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(28, 35, 28, 35)
+        }
+
+        val header = TextView(this).apply {
+            text = "GOD SYSTEM"
+            textSize = 28f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(orange)
+            setPadding(0, 0, 0, 8)
+        }
+
+        val subtitle = TextView(this).apply {
+            text = "CONTROL CENTER"
+            textSize = 12f
+            setTextColor(blue)
+            setPadding(0, 0, 0, 25)
+        }
+
+        menu.addView(header)
+        menu.addView(subtitle)
+
+        addMenuItem(menu, "◉", "VOICE ASSISTANT") {
+            startVoiceMode()
+        }
+
+        addMenuItem(menu, "◇", "CHAT") {
+            showTextInput()
+        }
+
+        addMenuItem(menu, "◆", "APPS") {
+            showMessage("Apps module")
+        }
+
+        addMenuItem(menu, "◇", "FILES") {
+            showMessage("Files module")
+        }
+
+        addMenuItem(menu, "◆", "DOCUMENTS") {
+            showMessage("Documents module")
+        }
+
+        addMenuItem(menu, "◇", "MEMORY") {
+            showMessage("Memory module")
+        }
+
+        addMenuDivider(menu)
+
+        addMenuItem(menu, "◆", "AI PROVIDER / API") {
+            val intent = Intent(
+                this,
+                AIProviderActivity::class.java
+            )
+            startActivity(intent)
+        }
+
+        addMenuItem(menu, "◆", "SECURITY") {
+            showSecurityPanel()
+        }
+
+        addMenuItem(menu, "◆", "PERMISSIONS") {
+            showPermissionPanel()
+        }
+
+        addMenuItem(menu, "◆", "AUTHORIZED FOLDER") {
+            authorizeFolder()
+        }
+
+        addMenuItem(menu, "◆", "SETTINGS") {
+            showSettingsPanel()
+        }
+
+        addMenuDivider(menu)
+
+        val back = TextView(this).apply {
+            text = "‹  BACK TO GOD"
+            textSize = 16f
+            setTextColor(white)
+            gravity = Gravity.CENTER
+            setPadding(20, 25, 20, 25)
+
+            setOnClickListener {
+                showGodHome()
+            }
+        }
+
+        menu.addView(back)
+
+        scroll.addView(menu)
+        setContentView(scroll)
+    }
+
+    private fun addMenuItem(
+        menu: LinearLayout,
+        icon: String,
+        title: String,
         action: () -> Unit
     ) {
 
-        val button = Button(this).apply {
-            this.text = text
+        val item = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(20, 20, 20, 20)
+
+            background = roundedBackground(
+                Color.rgb(7, 18, 31),
+                Color.rgb(25, 90, 160),
+                22f
+            )
+
+            isClickable = true
+            isFocusable = true
 
             setOnClickListener {
                 action()
             }
         }
 
-        layout.addView(
-            button,
+        val iconView = TextView(this).apply {
+            text = icon
+            textSize = 20f
+            setTextColor(orange)
+            gravity = Gravity.CENTER
+        }
+
+        val textView = TextView(this).apply {
+            text = title
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(white)
+            setPadding(18, 0, 0, 0)
+        }
+
+        item.addView(
+            iconView,
             LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                45,
+                LinearLayout.LayoutParams.WRAP_CONTENT
             )
         )
+
+        item.addView(
+            textView,
+            LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+        )
+
+        val params = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+
+        params.setMargins(0, 7, 0, 7)
+
+        menu.addView(item, params)
     }
 
-    private fun showSettings() {
+    private fun addMenuDivider(menu: LinearLayout) {
+
+        val divider = View(this).apply {
+            setBackgroundColor(Color.rgb(20, 80, 130))
+        }
+
+        val params = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            1
+        )
+
+        params.setMargins(0, 18, 0, 18)
+
+        menu.addView(divider, params)
+    }
+
+    // ============================================================
+    // VOICE
+    // ============================================================
+
+    private fun startVoiceMode() {
+
+        if (
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.RECORD_AUDIO),
+                100
+            )
+
+            return
+        }
+
+        Toast.makeText(
+            this,
+            "GOD is listening...",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        /*
+         * Real speech recognition will be connected
+         * in the next voice module step.
+         */
+    }
+
+    // ============================================================
+    // TEXT CHAT
+    // ============================================================
+
+    private fun showTextInput() {
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(25, 35, 25, 25)
+            setBackgroundColor(dark)
+        }
+
+        val title = TextView(this).apply {
+            text = "GOD // CHAT"
+            textSize = 26f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(orange)
+            setPadding(0, 0, 0, 25)
+        }
+
+        val input = android.widget.EditText(this).apply {
+            hint = "Ask GOD anything..."
+            textSize = 17f
+            setTextColor(white)
+            setHintTextColor(Color.rgb(100, 130, 160))
+            setPadding(20, 20, 20, 20)
+            background = roundedBackground(
+                Color.rgb(8, 20, 35),
+                blue,
+                22f
+            )
+        }
+
+        val send = TextView(this).apply {
+            text = "SEND  ➤"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(white)
+            gravity = Gravity.CENTER
+            setPadding(20, 20, 20, 20)
+
+            background = roundedBackground(
+                Color.rgb(10, 30, 50),
+                orange,
+                24f
+            )
+
+            setOnClickListener {
+                Toast.makeText(
+                    this@MainActivity,
+                    "AI connection will be connected next.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        layout.addView(title)
+        layout.addView(
+            input,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        val sendParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+
+        sendParams.setMargins(0, 20, 0, 0)
+
+        layout.addView(send, sendParams)
+
+        val back = createBackButton {
+            showGodHome()
+        }
+
+        layout.addView(back)
+
+        setContentView(layout)
+    }
+
+    // ============================================================
+    // PERMISSIONS
+    // ============================================================
+
+    private fun showPermissionPanel() {
+
+        val panel = GodPanel.create(
+            this,
+            "GOD // Permissions"
+        )
+
+        GodPanel.addSection(
+            this,
+            panel,
+            "MICROPHONE",
+            if (hasPermission(Manifest.permission.RECORD_AUDIO))
+                "✓ ENABLED"
+            else
+                "○ NOT GRANTED"
+        )
+
+        GodPanel.addSection(
+            this,
+            panel,
+            "CAMERA",
+            if (hasPermission(Manifest.permission.CAMERA))
+                "✓ ENABLED"
+            else
+                "○ NOT GRANTED"
+        )
+
+        if (Build.VERSION.SDK_INT >= 33) {
+
+            GodPanel.addSection(
+                this,
+                panel,
+                "NOTIFICATIONS",
+                if (hasPermission(Manifest.permission.POST_NOTIFICATIONS))
+                    "✓ ENABLED"
+                else
+                    "○ NOT GRANTED"
+            )
+        }
+
+        GodPanel.addButton(
+            this,
+            panel,
+            "OPEN ANDROID PERMISSION SETTINGS"
+        ) {
+            val intent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:$packageName")
+            )
+            startActivity(intent)
+        }
+
+        GodPanel.addButton(
+            this,
+            panel,
+            "BACK TO GOD"
+        ) {
+            showGodHome()
+        }
+
+        setContentView(panel)
+    }
+
+    private fun hasPermission(permission: String): Boolean {
+
+        return ContextCompat.checkSelfPermission(
+            this,
+            permission
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    // ============================================================
+    // SECURITY
+    // ============================================================
+
+    private fun showSecurityPanel() {
+
+        val panel = GodPanel.create(
+            this,
+            "GOD // Security"
+        )
+
+        val biometricManager =
+            BiometricManager.from(this)
+
+        val biometricAvailable =
+            biometricManager.canAuthenticate(
+                BiometricManager.Authenticators.BIOMETRIC_STRONG
+            ) == BiometricManager.BIOMETRIC_SUCCESS
+
+        GodPanel.addSection(
+            this,
+            panel,
+            "BIOMETRIC SECURITY",
+            if (biometricAvailable)
+                "✓ AVAILABLE"
+            else
+                "○ NOT AVAILABLE"
+        )
+
+        GodPanel.addButton(
+            this,
+            panel,
+            "TEST BIOMETRIC"
+        ) {
+            authenticateWithBiometric()
+        }
+
+        GodPanel.addButton(
+            this,
+            panel,
+            "BACK TO GOD"
+        ) {
+            showGodHome()
+        }
+
+        setContentView(panel)
+    }
+
+    private fun authenticateWithBiometric() {
+
+        val executor =
+            AndroidContextCompat.getMainExecutor(this)
+
+        val prompt =
+            BiometricPrompt(
+                this,
+                executor,
+                object : BiometricPrompt.AuthenticationCallback() {
+
+                    override fun onAuthenticationSucceeded(
+                        result: BiometricPrompt.AuthenticationResult
+                    ) {
+                        super.onAuthenticationSucceeded(result)
+
+                        Toast.makeText(
+                            this@MainActivity,
+                            "GOD security verified.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+
+                    override fun onAuthenticationError(
+                        errorCode: Int,
+                        errString: CharSequence
+                    ) {
+                        super.onAuthenticationError(
+                            errorCode,
+                            errString
+                        )
+                    }
+                }
+            )
+
+        val promptInfo =
+            BiometricPrompt.PromptInfo.Builder()
+                .setTitle("GOD Security")
+                .setSubtitle("Authenticate to continue")
+                .setNegativeButtonText("Cancel")
+                .build()
+
+        prompt.authenticate(promptInfo)
+    }
+
+    // ============================================================
+    // SETTINGS
+    // ============================================================
+
+    private fun showSettingsPanel() {
+
+        val panel = GodPanel.create(
+            this,
+            "GOD // Settings"
+        )
+
+        GodPanel.addSection(
+            this,
+            panel,
+            "AI PROVIDER",
+            "Configure your AI connection"
+        ) {
+            startActivity(
+                Intent(
+                    this,
+                    AIProviderActivity::class.java
+                )
+            )
+        }
+
+        GodPanel.addSection(
+            this,
+            panel,
+            "PERMISSIONS",
+            "Manage Android permissions"
+        ) {
+            showPermissionPanel()
+        }
+
+        GodPanel.addSection(
+            this,
+            panel,
+            "SECURITY",
+            "Biometric protection"
+        ) {
+            showSecurityPanel()
+        }
+
+        GodPanel.addButton(
+            this,
+            panel,
+            "RUN INITIAL SETUP AGAIN"
+        ) {
+            setupPreferences.edit()
+                .putBoolean("setup_complete", false)
+                .apply()
+
+            showSetupScreen()
+        }
+
+        GodPanel.addButton(
+            this,
+            panel,
+            "BACK TO GOD"
+        ) {
+            showGodHome()
+        }
+
+        setContentView(panel)
+    }
+
+    // ============================================================
+    // SETUP
+    // ============================================================
+
+    private fun showSetupScreen() {
 
         val scrollView = ScrollView(this)
 
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(
-                35,
-                50,
-                35,
-                50
-            )
+            setPadding(30, 50, 30, 40)
+            setBackgroundColor(dark)
         }
 
         val title = TextView(this).apply {
-            text = "GOD Settings"
-            textSize = 30f
+            text = "GOD INITIAL SETUP"
+            textSize = 28f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(orange)
             gravity = Gravity.CENTER
+            setPadding(0, 0, 0, 30)
         }
 
         layout.addView(title)
 
-        val aiButton = Button(this).apply {
-            text = "AI Provider / API"
-
-            setOnClickListener {
-
-                val intent = Intent(
-                    this@MainActivity,
-                    AIProviderActivity::class.java
-                )
-
-                startActivity(intent)
-            }
-        }
-
-        layout.addView(aiButton)
-
-        val securityButton = Button(this).apply {
-            text = "Security & Biometrics"
-
-            setOnClickListener {
-                setupBiometric()
-            }
-        }
-
-        layout.addView(securityButton)
-
-        val folderButton = Button(this).apply {
-            text = "Authorized Folder"
-
-            setOnClickListener {
-                openFolderPicker()
-            }
-        }
-
-        layout.addView(folderButton)
-
-        val permissionsButton = Button(this).apply {
-            text = "Permission Settings"
-
-            setOnClickListener {
-                openAppSettings()
-            }
-        }
-
-        layout.addView(permissionsButton)
-
-        val resetButton = Button(this).apply {
-            text = "Run Initial Setup Again"
-
-            setOnClickListener {
-
-                getSharedPreferences(
-                    preferencesName,
-                    MODE_PRIVATE
-                )
-                    .edit()
-                    .putBoolean(
-                        "setup_complete",
-                        false
-                    )
-                    .apply()
-
-                showInitialSetup()
-            }
-        }
-
-        layout.addView(resetButton)
-
-        val backButton = Button(this).apply {
-            text = "Back to GOD"
-
-            setOnClickListener {
-                showGodHome()
-            }
-        }
-
-        layout.addView(backButton)
-
-        scrollView.addView(layout)
-
-        setContentView(scrollView)
-    }
-
-    private fun openAppSettings() {
-
-        val intent = Intent(
-            Settings.ACTION_APPLICATION_DETAILS_SETTINGS
-        )
-
-        intent.data =
-            Uri.parse(
-                "package:$packageName"
+        addSetupButton(
+            layout,
+            "SET UP MICROPHONE"
+        ) {
+            requestPermission(
+                Manifest.permission.RECORD_AUDIO,
+                101
             )
+        }
 
-        startActivity(intent)
-    }
-}
+        addSetupButton(
+            layout,
+            "SET UP CAMERA"
+        ) {
+            requestPermission(
+                Manifest.permission.CAMERA,
+                102
+            )
+        }
+
+        if (Build.VERSION.SDK_INT >= 33) {
+
+            addSetupButton(
+                layout,
+                "SET UP NOTIFICATIONS"
+            ) {
+                requestPermission(
+                    Manifest.permission.POST_NOTIFICATIONS,
+                    103
+                )
