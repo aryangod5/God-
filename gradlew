@@ -1,5 +1,4 @@
-# Increase the maximum file descriptors if we can.
-if #!/bin/sh
+#!/bin/sh
 
 #
 # Copyright 2015 the original author or authors.
