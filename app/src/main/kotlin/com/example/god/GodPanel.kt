@@ -3,16 +3,18 @@ package com.example.god
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 
 object GodPanel {
 
-    private val blue = Color.rgb(30, 150, 255)
-    private val orange = Color.rgb(255, 145, 0)
-    private val background = Color.rgb(5, 12, 22)
-    private val text = Color.rgb(225, 240, 255)
+    private val blueColor = Color.rgb(30, 150, 255)
+    private val orangeColor = Color.rgb(255, 145, 0)
+    private val panelBackgroundColor = Color.rgb(5, 12, 22)
+    private val cardBackgroundColor = Color.rgb(8, 20, 35)
+    private val textColor = Color.rgb(225, 240, 255)
 
     fun create(
         context: Context,
@@ -24,8 +26,8 @@ object GodPanel {
             setPadding(28, 30, 28, 30)
 
             background = GradientDrawable().apply {
-                setColor(background)
-                setStroke(2, blue)
+                setColor(panelBackgroundColor)
+                setStroke(2, blueColor)
                 cornerRadius = 28f
             }
 
@@ -33,9 +35,9 @@ object GodPanel {
         }
 
         val titleView = TextView(context).apply {
-            this.text = title.uppercase()
+            text = title.uppercase()
             textSize = 22f
-            setTextColor(orange)
+            setTextColor(orangeColor)
             setPadding(0, 0, 0, 24)
         }
 
@@ -57,7 +59,7 @@ object GodPanel {
             setPadding(22, 18, 22, 18)
 
             background = GradientDrawable().apply {
-                setColor(Color.rgb(8, 20, 35))
+                setColor(cardBackgroundColor)
                 setStroke(1, Color.rgb(25, 100, 180))
                 cornerRadius = 20f
             }
@@ -65,6 +67,7 @@ object GodPanel {
             if (onClick != null) {
                 isClickable = true
                 isFocusable = true
+
                 setOnClickListener {
                     onClick()
                 }
@@ -74,13 +77,13 @@ object GodPanel {
         val labelView = TextView(context).apply {
             text = "◆  $label"
             textSize = 14f
-            setTextColor(blue)
+            setTextColor(blueColor)
         }
 
         val valueView = TextView(context).apply {
             text = value
             textSize = 17f
-            setTextColor(text)
+            setTextColor(textColor)
             setPadding(0, 8, 0, 0)
         }
 
@@ -107,13 +110,13 @@ object GodPanel {
         val button = TextView(context).apply {
             text = "◆  $title"
             textSize = 16f
-            setTextColor(text)
-            gravity = android.view.Gravity.CENTER
+            setTextColor(textColor)
+            gravity = Gravity.CENTER
             setPadding(20, 20, 20, 20)
 
             background = GradientDrawable().apply {
                 setColor(Color.rgb(10, 30, 50))
-                setStroke(2, orange)
+                setStroke(2, orangeColor)
                 cornerRadius = 24f
             }
 
