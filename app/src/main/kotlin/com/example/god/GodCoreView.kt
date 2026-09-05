@@ -24,6 +24,13 @@ class GodCoreView @JvmOverloads constructor(
     private val detailPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     private var animationTime = 0f
+        fun setAIState(state: com.example.god.voice.AIState) {
+        invalidate()
+    }
+
+    fun setVoiceLevel(level: Float) {
+        invalidate()
+    }
 
     private val orange = Color.rgb(255, 145, 0)
     private val brightOrange = Color.rgb(255, 205, 100)
