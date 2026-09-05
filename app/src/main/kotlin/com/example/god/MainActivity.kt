@@ -719,66 +719,7 @@ class MainActivity : ComponentActivity() {
         message.background = messageBackground
 
         val messageParams = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            dp(110)
-        )
 
-        messageParams.setMargins(
-            0,
-            dp(20),
-            0,
-            dp(10)
-        )
-
-        root.addView(
-            message,
-            messageParams
-        )
-
-        val sendButton = createHudButton("SEND TO GOD")
-
-        sendButton.setOnClickListener {
-
-            val text = message.text.toString().trim()
-
-            if (text.isNotEmpty()) {
-                showMessage("Chat input received.")
-            }
-        }
-
-        root.addView(
-            sendButton,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(48)
-            )
-        )
-
-        val backButton = createHudButton("BACK TO CORE")
-
-        backButton.setOnClickListener {
-            showGodHome()
-        }
-
-        val backParams = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            dp(48)
-        )
-
-        backParams.setMargins(
-            0,
-            dp(12),
-            0,
-            0
-        )
-
-        root.addView(
-            backButton,
-            backParams
-        )
-
-        setContentView(root)
-    }
 
     private fun addMenuButton(
         parent: LinearLayout,
