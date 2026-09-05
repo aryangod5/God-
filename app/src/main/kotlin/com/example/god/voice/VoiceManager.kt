@@ -7,6 +7,7 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import java.util.Locale
 
 enum class AIState {
@@ -25,372 +26,576 @@ class VoiceManager(
 ) {
 
     interface Listener {
-        fun onStateChanged(state: AIState)
-        fun onPartialText(text: String)
-        fun onFinalText(text: String)
-        fun onResponse(text: String)
-        fun onError(message: String)
+
+        fun onStateChanged(
+            state: AIState
+        )
+
+        fun onTextRecognized(
+            text: String
+        )
+
+        fun onError(
+            message: String
+        )
     }
 
-    private var speechRecognizer: SpeechRecognizer? = null
-    private var textToSpeech: TextToSpeech? = null
-    private var ttsReady = false
-    private var released = false
+    private var speechRecognizer:
+            SpeechRecognizer? = null
+
+    private var textToSpeech:
+            TextToSpeech? = null
+
+    private var isListening = false
 
     init {
-        initialize()
+        initializeTextToSpeech()
+        initializeSpeechRecognizer()
     }
 
-    private fun initialize() {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            listener.onStateChanged(AIState.OFFLINE)
-            listener.onError("Speech recognition is not available on this device.")
-            return
-        }
+    // =========================================================
+    // TEXT TO SPEECH
+    // =========================================================
 
-        listener.onStateChanged(AIState.STARTING)
+    private fun initializeTextToSpeech() {
 
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
+        listener.onStateChanged(
+            AIState.STARTING
+        )
 
-        speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+        textToSpeech =
+            TextToSpeech(
+                context
+            ) { status ->
 
-            override fun onReadyForSpeech(params: Bundle?) {
-                listener.onStateChanged(AIState.LISTENING)
-            }
-
-            override fun onBeginningOfSpeech() {
-                listener.onStateChanged(AIState.LISTENING)
-            }
-
-            override fun onRmsChanged(rmsdB: Float) {
-                // Reserved for the live audio waveform in the next step.
-                // The value is already coming from the real microphone.
-            }
-
-            override fun onBufferReceived(buffer: ByteArray?) {
-            }
-
-            override fun onEndOfSpeech() {
-                listener.onStateChanged(AIState.PROCESSING)
-            }
-
-            override fun onError(error: Int) {
-                if (released) return
-
-                val message = when (error) {
-                    SpeechRecognizer.ERROR_AUDIO ->
-                        "Microphone audio error."
-
-                    SpeechRecognizer.ERROR_CLIENT ->
-                        "Speech recognition client error."
-
-                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
-                        "Microphone permission is required."
-
-                    SpeechRecognizer.ERROR_NETWORK ->
-                        "Speech recognition network error."
-
-                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
-                        "Speech recognition timed out."
-
-                    SpeechRecognizer.ERROR_NO_MATCH ->
-                        "I didn't catch that."
-
-                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY ->
-                        "Speech recognizer is busy."
-
-                    SpeechRecognizer.ERROR_SERVER ->
-                        "Speech recognition server error."
-
-                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
-                        "I didn't hear anything."
-
-                    else ->
-                        "Speech recognition error."
-                }
-
-                listener.onStateChanged(AIState.ERROR)
-                listener.onError(message)
-
-                if (error != SpeechRecognizer.ERROR_NO_MATCH &&
-                    error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+                if (status ==
+                    TextToSpeech.SUCCESS
                 ) {
-                    return
-                }
 
-                listener.onStateChanged(AIState.IDLE)
+                    val result =
+                        textToSpeech?.setLanguage(
+                            Locale.getDefault()
+                        )
+
+                    if (
+                        result ==
+                        TextToSpeech.LANG_MISSING_DATA ||
+                        result ==
+                        TextToSpeech.LANG_NOT_SUPPORTED
+                    ) {
+
+                        listener.onError(
+                            "Text-to-speech language is not supported."
+                        )
+
+                    } else {
+
+                        listener.onStateChanged(
+                            AIState.IDLE
+                        )
+                    }
+
+                } else {
+
+                    listener.onError(
+                        "Text-to-speech initialization failed."
+                    )
+                }
             }
 
-            override fun onResults(results: Bundle?) {
-                if (released) return
+        textToSpeech?.setOnUtteranceProgressListener(
+            object : UtteranceProgressListener() {
 
-                val matches =
-                    results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                override fun onStart(
+                    utteranceId: String?
+                ) {
 
-                val text = matches
-                    ?.firstOrNull()
-                    ?.trim()
-                    .orEmpty()
-
-                if (text.isEmpty()) {
-                    listener.onStateChanged(AIState.IDLE)
-                    listener.onError("I didn't catch that.")
-                    return
+                    listener.onStateChanged(
+                        AIState.SPEAKING
+                    )
                 }
 
-                listener.onFinalText(text)
-                listener.onStateChanged(AIState.PROCESSING)
+                override fun onDone(
+                    utteranceId: String?
+                ) {
 
-                processCommand(text)
-            }
+                    listener.onStateChanged(
+                        AIState.IDLE
+                    )
+                }
 
-            override fun onPartialResults(partialResults: Bundle?) {
-                val matches =
-                    partialResults?.getStringArrayList(
-                        SpeechRecognizer.RESULTS_RECOGNITION
+                override fun onError(
+                    utteranceId: String?
+                ) {
+
+                    listener.onStateChanged(
+                        AIState.ERROR
                     )
 
-                val text = matches
-                    ?.firstOrNull()
-                    ?.trim()
-                    .orEmpty()
-
-                if (text.isNotEmpty()) {
-                    listener.onPartialText(text)
+                    listener.onError(
+                        "Voice output failed."
+                    )
                 }
             }
-
-            override fun onEvent(eventType: Int, params: Bundle?) {
-            }
-        })
-
-        textToSpeech = TextToSpeech(context) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                val result = textToSpeech?.setLanguage(Locale.getDefault())
-
-                ttsReady =
-                    result != TextToSpeech.LANG_MISSING_DATA &&
-                    result != TextToSpeech.LANG_NOT_SUPPORTED
-
-                if (!ttsReady) {
-                    listener.onError("Text-to-speech language is not available.")
-                }
-
-                if (!released) {
-                    listener.onStateChanged(AIState.IDLE)
-                }
-            } else {
-                ttsReady = false
-                listener.onStateChanged(AIState.ERROR)
-                listener.onError("Text-to-speech could not be initialized.")
-            }
-        }
+        )
     }
 
-    fun startListening() {
-        if (released) return
+    // =========================================================
+    // SPEECH RECOGNITION
+    // =========================================================
 
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            listener.onStateChanged(AIState.OFFLINE)
-            listener.onError("Speech recognition is not available.")
+    private fun initializeSpeechRecognizer() {
+
+        if (
+            !SpeechRecognizer.isRecognitionAvailable(
+                context
+            )
+        ) {
+
+            listener.onStateChanged(
+                AIState.OFFLINE
+            )
+
+            listener.onError(
+                "Speech recognition is not available on this device."
+            )
+
             return
         }
 
-        listener.onStateChanged(AIState.STARTING)
-
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(
-                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+        speechRecognizer =
+            SpeechRecognizer.createSpeechRecognizer(
+                context
             )
 
-            putExtra(
-                RecognizerIntent.EXTRA_LANGUAGE,
-                Locale.getDefault()
+        speechRecognizer?.setRecognitionListener(
+            object : RecognitionListener {
+
+                override fun onReadyForSpeech(
+                    params: Bundle?
+                ) {
+
+                    listener.onStateChanged(
+                        AIState.LISTENING
+                    )
+                }
+
+                override fun onBeginningOfSpeech() {
+
+                    listener.onStateChanged(
+                        AIState.LISTENING
+                    )
+                }
+
+                override fun onRmsChanged(
+                    rmsdB: Float
+                ) {
+                    // Audio level is available here.
+                    // The visual waveform will use this
+                    // in a later step.
+                }
+
+                override fun onBufferReceived(
+                    buffer: ByteArray?
+                ) {
+                }
+
+                override fun onEndOfSpeech() {
+
+                    listener.onStateChanged(
+                        AIState.PROCESSING
+                    )
+                }
+
+                override fun onError(
+                    error: Int
+                ) {
+
+                    isListening = false
+
+                    listener.onStateChanged(
+                        AIState.IDLE
+                    )
+
+                    val message =
+                        when (error) {
+
+                            SpeechRecognizer.ERROR_AUDIO ->
+                                "Microphone audio error."
+
+                            SpeechRecognizer.ERROR_CLIENT ->
+                                "Speech recognition client error."
+
+                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
+                                "Microphone permission is required."
+
+                            SpeechRecognizer.ERROR_NETWORK ->
+                                "Speech recognition network error."
+
+                            SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
+                                "Speech recognition network timeout."
+
+                            SpeechRecognizer.ERROR_NO_MATCH ->
+                                "I couldn't understand that."
+
+                            SpeechRecognizer.ERROR_RECOGNIZER_BUSY ->
+                                "Speech recognizer is busy."
+
+                            SpeechRecognizer.ERROR_SERVER ->
+                                "Speech recognition server error."
+
+                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
+                                "No speech detected."
+
+                            else ->
+                                "Speech recognition error."
+                        }
+
+                    listener.onError(
+                        message
+                    )
+                }
+
+                override fun onResults(
+                    results: Bundle?
+                ) {
+
+                    isListening = false
+
+                    val matches =
+                        results?.getStringArrayList(
+                            SpeechRecognizer.RESULTS_RECOGNITION
+                        )
+
+                    val text =
+                        matches
+                            ?.firstOrNull()
+                            ?.trim()
+                            ?: ""
+
+                    if (text.isBlank()) {
+
+                        listener.onStateChanged(
+                            AIState.IDLE
+                        )
+
+                        return
+                    }
+
+                    listener.onTextRecognized(
+                        text
+                    )
+
+                    listener.onStateChanged(
+                        AIState.PROCESSING
+                    )
+
+                    processCommand(
+                        text
+                    )
+                }
+
+                override fun onPartialResults(
+                    partialResults: Bundle?
+                ) {
+                }
+            }
+        )
+    }
+
+    // =========================================================
+    // START LISTENING
+    // =========================================================
+
+    fun startListening() {
+
+        if (
+            speechRecognizer == null
+        ) {
+
+            listener.onStateChanged(
+                AIState.OFFLINE
             )
 
-            putExtra(
-                RecognizerIntent.EXTRA_PARTIAL_RESULTS,
-                true
+            listener.onError(
+                "Speech recognition is unavailable."
             )
 
-            putExtra(
-                RecognizerIntent.EXTRA_MAX_RESULTS,
-                1
-            )
+            return
         }
 
+        if (isListening) {
+            return
+        }
+
+        stopSpeaking()
+
+        val intent =
+            Intent(
+                RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+            ).apply {
+
+                putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                )
+
+                putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE,
+                    Locale.getDefault()
+                )
+
+                putExtra(
+                    RecognizerIntent.EXTRA_PARTIAL_RESULTS,
+                    true
+                )
+
+                putExtra(
+                    RecognizerIntent.EXTRA_MAX_RESULTS,
+                    3
+                )
+            }
+
         try {
-            speechRecognizer?.startListening(intent)
-        } catch (e: Exception) {
-            listener.onStateChanged(AIState.ERROR)
+
+            isListening = true
+
+            listener.onStateChanged(
+                AIState.LISTENING
+            )
+
+            speechRecognizer?.startListening(
+                intent
+            )
+
+        } catch (exception: Exception) {
+
+            isListening = false
+
+            listener.onStateChanged(
+                AIState.ERROR
+            )
+
             listener.onError(
-                e.message ?: "Could not start microphone."
+                "Unable to start microphone: ${exception.message}"
             )
         }
     }
+
+    // =========================================================
+    // STOP LISTENING
+    // =========================================================
 
     fun stopListening() {
-        if (released) return
+
+        if (!isListening) {
+            return
+        }
 
         try {
+
             speechRecognizer?.stopListening()
+
         } catch (_: Exception) {
         }
+
+        isListening = false
     }
+
+    // =========================================================
+    // CANCEL LISTENING
+    // =========================================================
 
     fun cancelListening() {
-        if (released) return
 
         try {
+
             speechRecognizer?.cancel()
+
         } catch (_: Exception) {
         }
 
-        listener.onStateChanged(AIState.IDLE)
+        isListening = false
+
+        listener.onStateChanged(
+            AIState.IDLE
+        )
     }
 
-    private fun processCommand(text: String) {
-        val response = generateLocalResponse(text)
+    // =========================================================
+    // COMMAND PROCESSING
+    // =========================================================
 
-        listener.onResponse(response)
-        speak(response)
+    private fun processCommand(
+        text: String
+    ) {
+
+        val response =
+            generateLocalResponse(
+                text
+            )
+
+        speak(
+            response
+        )
     }
 
-    /**
-     * Local GOD assistant.
-     *
-     * This deliberately does not require an API key.
-     * A real AI provider can be connected later without changing
-     * the microphone/TTS architecture.
-     */
-    private fun generateLocalResponse(input: String): String {
-        val text = input.lowercase(Locale.getDefault()).trim()
+    private fun generateLocalResponse(
+        text: String
+    ): String {
+
+        val command =
+            text
+                .trim()
+                .lowercase(Locale.getDefault())
 
         return when {
-            text == "hello" ||
-            text == "hi" ||
-            text.contains("hello god") ||
-            text.contains("hi god") -> {
-                "Hello. GOD is online and ready."
-            }
 
-            text.contains("who are you") -> {
-                "I am GOD, your Android assistant."
-            }
+            command.contains("hello") ||
+                    command.contains("hi") ||
+                    command.contains("hey") ->
 
-            text.contains("are you there") -> {
-                "Yes. I am here."
-            }
+                "Hello, Master. GOD is online and ready."
 
-            text.contains("how are you") -> {
-                "All systems are operational."
-            }
+            command.contains("who are you") ||
 
-            text.contains("thank you") ||
-            text.contains("thanks") -> {
-                "You're welcome."
-            }
+                    command.contains("what are you") ->
 
-            text.contains("stop") ||
-            text.contains("cancel") -> {
+                "I am GOD, your personal AI assistant."
+
+            command.contains("are you there") ||
+                    command.contains("can you hear me") ->
+
+                "Yes, Master. I can hear you."
+
+            command.contains("what time") ->
+
+                "The current time is ${
+                    java.text.SimpleDateFormat(
+                        "h:mm a",
+                        Locale.getDefault()
+                    ).format(
+                        java.util.Date()
+                    )
+                }."
+
+            command.contains("what date") ||
+                    command.contains("today's date") ||
+                    command.contains("what day") ->
+
+                "Today is ${
+                    java.text.SimpleDateFormat(
+                        "EEEE, d MMMM yyyy",
+                        Locale.getDefault()
+                    ).format(
+                        java.util.Date()
+                    )
+                }."
+
+            command.contains("thank") ->
+
+                "You're welcome, Master."
+
+            command.contains("stop") ||
+                    command.contains("cancel") -> {
+
                 "Command cancelled."
             }
 
-            text.contains("time") -> {
-                val time = java.text.SimpleDateFormat(
-                    "h:mm a",
-                    Locale.getDefault()
-                ).format(java.util.Date())
+            command.contains("settings") ->
 
-                "The current time is $time."
-            }
+                "Settings are available from the GOD system menu."
 
-            text.contains("date") ||
-            text.contains("today") -> {
-                val date = java.text.SimpleDateFormat(
-                    "EEEE, d MMMM yyyy",
-                    Locale.getDefault()
-                ).format(java.util.Date())
+            command.contains("what can you do") ||
+                    command.contains("capabilities") ->
 
-                "Today is $date."
-            }
+                "I can listen to your voice, understand commands, respond with speech, and control the GOD interface. More capabilities will be added to the system."
 
-            text.contains("open settings") -> {
-                "Settings command received."
-            }
+            else ->
 
-            text.contains("what can you do") ||
-            text.contains("what do you do") -> {
-                "I can listen to your voice, understand commands, speak responses, and control the GOD interface."
-            }
-
-            else -> {
-                "I heard you say: $input. The local GOD assistant is working. Full AI intelligence can be connected later."
-            }
+                "I heard you say: $text. The AI provider can be connected later for full AI responses."
         }
     }
 
-    private fun speak(text: String) {
-        if (released) return
+    // =========================================================
+    // SPEAK
+    // =========================================================
 
-        if (!ttsReady || textToSpeech == null) {
-            listener.onStateChanged(AIState.IDLE)
+    private fun speak(
+        text: String
+    ) {
+
+        val tts =
+            textToSpeech
+
+        if (tts == null) {
+
+            listener.onStateChanged(
+                AIState.ERROR
+            )
+
+            listener.onError(
+                "Voice output is not ready."
+            )
+
             return
         }
 
-        listener.onStateChanged(AIState.SPEAKING)
+        try {
 
-        val utteranceId = "GOD_RESPONSE"
+            listener.onStateChanged(
+                AIState.SPEAKING
+            )
 
-        textToSpeech?.setSpeechRate(1.0f)
-        textToSpeech?.setPitch(1.0f)
+            tts.speak(
+                text,
+                TextToSpeech.QUEUE_FLUSH,
+                null,
+                "GOD_RESPONSE"
+            )
 
-        textToSpeech?.setOnUtteranceProgressListener(
-            object : android.speech.tts.UtteranceProgressListener() {
+        } catch (exception: Exception) {
 
-                override fun onStart(utteranceId: String?) {
-                    listener.onStateChanged(AIState.SPEAKING)
-                }
+            listener.onStateChanged(
+                AIState.ERROR
+            )
 
-                override fun onDone(utteranceId: String?) {
-                    if (!released) {
-                        listener.onStateChanged(AIState.IDLE)
-                    }
-                }
-
-                override fun onError(utteranceId: String?) {
-                    if (!released) {
-                        listener.onStateChanged(AIState.ERROR)
-                        listener.onError("Text-to-speech failed.")
-                    }
-                }
-            }
-        )
-
-        textToSpeech?.speak(
-            text,
-            TextToSpeech.QUEUE_FLUSH,
-            null,
-            utteranceId
-        )
-    }
-
-    fun stopSpeaking() {
-        textToSpeech?.stop()
-
-        if (!released) {
-            listener.onStateChanged(AIState.IDLE)
+            listener.onError(
+                "Unable to speak response: ${exception.message}"
+            )
         }
     }
 
-    fun release() {
-        if (released) return
+    // =========================================================
+    // STOP SPEAKING
+    // =========================================================
 
-        released = true
+    fun stopSpeaking() {
+
+        try {
+
+            textToSpeech?.stop()
+
+        } catch (_: Exception) {
+        }
+
+        listener.onStateChanged(
+            AIState.IDLE
+        )
+    }
+
+    // =========================================================
+    // RELEASE
+    // =========================================================
+
+    fun release() {
 
         try {
             speechRecognizer?.cancel()
+        } catch (_: Exception) {
+        }
+
+        try {
             speechRecognizer?.destroy()
         } catch (_: Exception) {
         }
@@ -399,10 +604,16 @@ class VoiceManager(
 
         try {
             textToSpeech?.stop()
+        } catch (_: Exception) {
+        }
+
+        try {
             textToSpeech?.shutdown()
         } catch (_: Exception) {
         }
 
         textToSpeech = null
+
+        isListening = false
     }
 }
