@@ -10,6 +10,7 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -270,7 +271,8 @@ class MainActivity : ComponentActivity() {
             Toast.LENGTH_SHORT
         ).show()
     }
-        private fun showSideMenu() {
+
+    private fun showSideMenu() {
 
         val scrollView = ScrollView(this)
 
@@ -358,7 +360,7 @@ class MainActivity : ComponentActivity() {
             showGodHome()
         }
 
-        root.addView(
+        menu.addView(
             backButton,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -366,13 +368,146 @@ class MainActivity : ComponentActivity() {
             )
         )
 
-        setContentView(root)
+        setContentView(scrollView)
+    }
+
+    private fun addMenuButton(
+        parent: LinearLayout,
+        text: String,
+        action: () -> Unit
+    ) {
+
+        val button = Button(this)
+
+        button.text = text
+        button.setTextColor(Color.WHITE)
+
+        button.setOnClickListener {
+            action()
         }
-            override fun onRequestPermissionsResult(
+
+        parent.addView(
+            button,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+    }
+
+    private fun showChatScreen() {
+
+        val root = LinearLayout(this)
+
+        root.orientation = LinearLayout.VERTICAL
+        root.setPadding(30, 30, 30, 30)
+        root.setBackgroundColor(Color.rgb(3, 7, 14))
+
+        val title = TextView(this)
+
+        title.text = "GOD CHAT"
+        title.textSize = 22f
+        title.setTextColor(Color.WHITE)
+        title.gravity = Gravity.CENTER
+        title.setPadding(10, 20, 10, 30)
+
+        root.addView(title)
+
+        val message = EditText(this)
+
+        message.hint = "Ask GOD..."
+        message.setHintTextColor(Color.GRAY)
+        message.setTextColor(Color.WHITE)
+
+        root.addView(
+            message,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        val sendButton = Button(this)
+
+        sendButton.text = "SEND"
+        sendButton.setTextColor(Color.WHITE)
+
+        sendButton.setOnClickListener {
+
+            val text = message.text.toString().trim()
+
+            if (text.isNotEmpty()) {
+                showMessage("Chat input received.")
+            }
+        }
+
+        root.addView(sendButton)
+
+        val backButton = Button(this)
+
+        backButton.text = "BACK TO GOD"
+        backButton.setTextColor(Color.WHITE)
+
+        backButton.setOnClickListener {
+            showGodHome()
+        }
+
+        root.addView(backButton)
+
+        setContentView(root)
+    }
+
+    private fun openFiles() {
+
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+
+        intent.addCategory(Intent.CATEGORY_OPENABLE)
+        intent.type = "*/*"
+
+        startActivityForResult(intent, 2001)
+    }
+
+    private fun openAuthorizedFolder() {
+
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+
+        startActivityForResult(intent, 2002)
+    }
+
+    private fun openAppSettings() {
+
+        val intent = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.parse("package:$packageName")
+        )
+
+        startActivity(intent)
+    }
+
+    private fun openSecuritySettings() {
+
+        val intent = Intent(Settings.ACTION_SECURITY_SETTINGS)
+
+        try {
+            startActivity(intent)
+        } catch (_: Exception) {
+            showMessage("Security settings are not available.")
+        }
+    }
+
+    private fun openSettings() {
+
+        val intent = Intent(Settings.ACTION_SETTINGS)
+
+        startActivity(intent)
+    }
+
+    override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
+
         super.onRequestPermissionsResult(
             requestCode,
             permissions,
@@ -385,8 +520,11 @@ class MainActivity : ComponentActivity() {
                 grantResults.isNotEmpty() &&
                 grantResults[0] == PackageManager.PERMISSION_GRANTED
             ) {
+
                 startVoiceInput()
+
             } else {
+
                 showMessage(
                     "Microphone permission is required for voice control."
                 )
@@ -399,6 +537,7 @@ class MainActivity : ComponentActivity() {
         resultCode: Int,
         data: Intent?
     ) {
+
         super.onActivityResult(
             requestCode,
             resultCode,
@@ -416,6 +555,7 @@ class MainActivity : ComponentActivity() {
                 val uri = data?.data
 
                 if (uri != null) {
+
                     showMessage(
                         "File selected successfully."
                     )
@@ -459,5 +599,4 @@ class MainActivity : ComponentActivity() {
 
         super.onDestroy()
     }
-}
 }
