@@ -4,10 +4,13 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
@@ -28,8 +31,16 @@ class MainActivity : ComponentActivity() {
 
     private var voiceRecognizedText: TextView? = null
     private var statusText: TextView? = null
+    private var voiceMonitor: TextView? = null
 
     private val microphonePermissionCode = 1001
+
+    private val black = Color.rgb(2, 4, 7)
+    private val panel = Color.rgb(8, 10, 13)
+    private val orange = Color.rgb(255, 145, 0)
+    private val brightOrange = Color.rgb(255, 205, 100)
+    private val white = Color.WHITE
+    private val dimWhite = Color.rgb(175, 175, 175)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,6 +70,7 @@ class MainActivity : ComponentActivity() {
 
                     runOnUiThread {
                         godCoreView?.setVoiceLevel(level)
+                        updateVoiceMonitor(level)
                     }
                 }
 
@@ -68,9 +80,9 @@ class MainActivity : ComponentActivity() {
 
                         voiceRecognizedText?.text =
                             if (text.isBlank()) {
-                                "VOICE INPUT\n\nWaiting..."
+                                "VOICE INPUT  //  WAITING"
                             } else {
-                                "YOU SAID\n\n$text"
+                                "YOU SAID  //  $text"
                             }
                     }
                 }
@@ -90,8 +102,9 @@ class MainActivity : ComponentActivity() {
         val root = LinearLayout(this)
 
         root.orientation = LinearLayout.VERTICAL
-        root.gravity = Gravity.CENTER
-        root.setBackgroundColor(Color.rgb(3, 7, 14))
+        root.gravity = Gravity.CENTER_HORIZONTAL
+        root.setBackgroundColor(black)
+        root.setPadding(dp(14), dp(8), dp(14), dp(8))
 
         setContentView(
             root,
@@ -101,26 +114,83 @@ class MainActivity : ComponentActivity() {
             )
         )
 
-        statusText = TextView(this)
+        // ---------------------------------------------------------
+        // TOP HUD
+        // ---------------------------------------------------------
 
-        statusText?.text = "GOD SYSTEM • ONLINE"
-        statusText?.setTextColor(Color.WHITE)
-        statusText?.textSize = 14f
-        statusText?.gravity = Gravity.CENTER
-        statusText?.setPadding(10, 20, 10, 20)
+        val header = LinearLayout(this)
+        header.orientation = LinearLayout.HORIZONTAL
+        header.gravity = Gravity.CENTER_VERTICAL
 
         root.addView(
-            statusText,
+            header,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(52)
+            )
+        )
+
+        val title = TextView(this)
+        title.text = "G O D"
+        title.setTextColor(white)
+        title.textSize = 21f
+        title.typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        title.letterSpacing = 0.18f
+
+        header.addView(
+            title,
+            LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+        )
+
+        statusText = TextView(this)
+        statusText?.text = "●  ONLINE"
+        statusText?.setTextColor(orange)
+        statusText?.textSize = 12f
+        statusText?.gravity = Gravity.CENTER
+        statusText?.typeface = Typeface.MONOSPACE
+
+        header.addView(
+            statusText,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
         )
 
-        godCoreView = GodCoreView(this)
+        // ---------------------------------------------------------
+        // TOP TECHNICAL LINE
+        // ---------------------------------------------------------
+
+        val topLine = TextView(this)
+        topLine.text = "────────────────  CORE CONTROL  ────────────────"
+        topLine.setTextColor(orange)
+        topLine.alpha = 0.55f
+        topLine.textSize = 10f
+        topLine.gravity = Gravity.CENTER
+        topLine.typeface = Typeface.MONOSPACE
 
         root.addView(
-            godCoreView,
+            topLine,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(24)
+            )
+        )
+
+        // ---------------------------------------------------------
+        // CORE AREA
+        // ---------------------------------------------------------
+
+        val coreFrame = LinearLayout(this)
+        coreFrame.orientation = LinearLayout.VERTICAL
+        coreFrame.gravity = Gravity.CENTER
+
+        root.addView(
+            coreFrame,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 0,
@@ -128,26 +198,101 @@ class MainActivity : ComponentActivity() {
             )
         )
 
-        voiceRecognizedText = TextView(this)
+        godCoreView = GodCoreView(this)
 
-        voiceRecognizedText?.text =
-            "VOICE INPUT\n\nWaiting..."
-
-        voiceRecognizedText?.setTextColor(Color.WHITE)
-        voiceRecognizedText?.textSize = 15f
-        voiceRecognizedText?.gravity = Gravity.CENTER
-        voiceRecognizedText?.setPadding(20, 10, 20, 10)
-
-        root.addView(
-            voiceRecognizedText,
+        coreFrame.addView(
+            godCoreView,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                dp(320)
             )
         )
 
-        val controls = LinearLayout(this)
+        val coreLabel = TextView(this)
+        coreLabel.text = "GOD CORE  //  ACTIVE"
+        coreLabel.setTextColor(orange)
+        coreLabel.textSize = 10f
+        coreLabel.gravity = Gravity.CENTER
+        coreLabel.typeface = Typeface.MONOSPACE
+        coreLabel.letterSpacing = 0.12f
 
+        coreFrame.addView(
+            coreLabel,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(28)
+            )
+        )
+
+        // ---------------------------------------------------------
+        // VOICE MONITOR
+        // ---------------------------------------------------------
+
+        val voicePanel = createPanel()
+
+        val voiceHeader = TextView(this)
+        voiceHeader.text = "VOICE MONITOR  //  AUDIO CHANNEL"
+        voiceHeader.setTextColor(white)
+        voiceHeader.textSize = 10f
+        voiceHeader.typeface = Typeface.MONOSPACE
+
+        voicePanel.addView(
+            voiceHeader,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(24)
+            )
+        )
+
+        voiceMonitor = TextView(this)
+        voiceMonitor?.text = "IDLE   ▏▏▏▏▏▏▏▏▏▏▏   MIC READY"
+        voiceMonitor?.setTextColor(orange)
+        voiceMonitor?.textSize = 11f
+        voiceMonitor?.typeface = Typeface.MONOSPACE
+        voiceMonitor?.gravity = Gravity.CENTER
+
+        voicePanel.addView(
+            voiceMonitor,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(32)
+            )
+        )
+
+        voiceRecognizedText = TextView(this)
+        voiceRecognizedText?.text = "VOICE INPUT  //  WAITING"
+        voiceRecognizedText?.setTextColor(white)
+        voiceRecognizedText?.textSize = 11f
+        voiceRecognizedText?.gravity = Gravity.CENTER
+        voiceRecognizedText?.typeface = Typeface.MONOSPACE
+        voiceRecognizedText?.setPadding(
+            dp(4),
+            0,
+            dp(4),
+            0
+        )
+
+        voicePanel.addView(
+            voiceRecognizedText,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(30)
+            )
+        )
+
+        root.addView(
+            voicePanel,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(92)
+            )
+        )
+
+        // ---------------------------------------------------------
+        // QUICK CONTROL BUTTONS
+        // ---------------------------------------------------------
+
+        val controls = LinearLayout(this)
         controls.orientation = LinearLayout.HORIZONTAL
         controls.gravity = Gravity.CENTER
 
@@ -155,14 +300,11 @@ class MainActivity : ComponentActivity() {
             controls,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                dp(62)
             )
         )
 
-        val voiceButton = Button(this)
-
-        voiceButton.text = "VOICE"
-        voiceButton.setTextColor(Color.WHITE)
+        val voiceButton = createHudButton("VOICE")
 
         voiceButton.setOnClickListener {
             startVoiceInput()
@@ -170,36 +312,21 @@ class MainActivity : ComponentActivity() {
 
         controls.addView(
             voiceButton,
-            LinearLayout.LayoutParams(
-                0,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                1f
-            )
+            buttonWeight()
         )
 
-        val stopButton = Button(this)
+        val chatButton = createHudButton("CHAT")
 
-        stopButton.text = "STOP"
-        stopButton.setTextColor(Color.WHITE)
-
-        stopButton.setOnClickListener {
-            voiceManager?.cancelListening()
-            voiceManager?.stopSpeaking()
+        chatButton.setOnClickListener {
+            showChatScreen()
         }
 
         controls.addView(
-            stopButton,
-            LinearLayout.LayoutParams(
-                0,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                1f
-            )
+            chatButton,
+            buttonWeight()
         )
 
-        val menuButton = Button(this)
-
-        menuButton.text = "MENU"
-        menuButton.setTextColor(Color.WHITE)
+        val menuButton = createHudButton("MENU")
 
         menuButton.setOnClickListener {
             showSideMenu()
@@ -207,12 +334,122 @@ class MainActivity : ComponentActivity() {
 
         controls.addView(
             menuButton,
+            buttonWeight()
+        )
+
+        // ---------------------------------------------------------
+        // BOTTOM SYSTEM STATUS
+        // ---------------------------------------------------------
+
+        val bottom = TextView(this)
+        bottom.text =
+            "SYS  ●  ONLINE     CPU  --     RAM  --     BAT  --     NET  ●"
+        bottom.setTextColor(dimWhite)
+        bottom.textSize = 9f
+        bottom.gravity = Gravity.CENTER
+        bottom.typeface = Typeface.MONOSPACE
+
+        root.addView(
+            bottom,
             LinearLayout.LayoutParams(
-                0,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                1f
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(28)
             )
         )
+    }
+
+    private fun createPanel(): LinearLayout {
+
+        val panelLayout = LinearLayout(this)
+
+        panelLayout.orientation = LinearLayout.VERTICAL
+        panelLayout.gravity = Gravity.CENTER_VERTICAL
+        panelLayout.setPadding(
+            dp(12),
+            dp(6),
+            dp(12),
+            dp(6)
+        )
+
+        val drawable = GradientDrawable()
+        drawable.setColor(panel)
+        drawable.setStroke(dp(1), Color.rgb(120, 70, 10))
+        panelLayout.background = drawable
+
+        return panelLayout
+    }
+
+    private fun createHudButton(text: String): Button {
+
+        val button = Button(this)
+
+        button.text = text
+        button.setTextColor(white)
+        button.textSize = 11f
+        button.typeface = Typeface.create(
+            Typeface.MONOSPACE,
+            Typeface.BOLD
+        )
+        button.gravity = Gravity.CENTER
+        button.isAllCaps = false
+        button.setPadding(0, 0, 0, 0)
+
+        val drawable = GradientDrawable()
+        drawable.setColor(Color.rgb(10, 11, 13))
+        drawable.setStroke(dp(1), orange)
+        drawable.cornerRadius = dp(3).toFloat()
+
+        button.background = drawable
+
+        return button
+    }
+
+    private fun buttonWeight(): LinearLayout.LayoutParams {
+
+        val params = LinearLayout.LayoutParams(
+            0,
+            dp(46),
+            1f
+        )
+
+        params.setMargins(
+            dp(4),
+            dp(4),
+            dp(4),
+            dp(4)
+        )
+
+        return params
+    }
+
+    private fun updateVoiceMonitor(level: Float) {
+
+        val clamped = level.coerceIn(0f, 1f)
+
+        val bars = (clamped * 10f)
+            .toInt()
+            .coerceIn(0, 10)
+
+        val waveform = buildString {
+
+            for (i in 0 until 10) {
+
+                append(
+                    if (i < bars) {
+                        when {
+                            i % 3 == 0 -> "▂"
+                            i % 3 == 1 -> "▅"
+                            else -> "▃"
+                        }
+                    } else {
+                        "▁"
+                    }
+                )
+            }
+        }
+
+        voiceMonitor?.text =
+            "AUDIO  $waveform   MIC ACTIVE"
     }
 
     private fun startVoiceInput() {
@@ -241,25 +478,25 @@ class MainActivity : ComponentActivity() {
         statusText?.text = when (state) {
 
             AIState.OFFLINE ->
-                "GOD SYSTEM • OFFLINE"
+                "●  OFFLINE"
 
             AIState.STARTING ->
-                "GOD SYSTEM • STARTING"
+                "●  STARTING"
 
             AIState.IDLE ->
-                "GOD SYSTEM • ONLINE"
+                "●  ONLINE"
 
             AIState.LISTENING ->
-                "GOD SYSTEM • LISTENING"
+                "●  LISTENING"
 
             AIState.PROCESSING ->
-                "GOD SYSTEM • PROCESSING"
+                "●  PROCESSING"
 
             AIState.SPEAKING ->
-                "GOD SYSTEM • SPEAKING"
+                "●  SPEAKING"
 
             AIState.ERROR ->
-                "GOD SYSTEM • ERROR"
+                "●  ERROR"
         }
     }
 
@@ -275,12 +512,18 @@ class MainActivity : ComponentActivity() {
     private fun showSideMenu() {
 
         val scrollView = ScrollView(this)
+        scrollView.setBackgroundColor(black)
 
         val menu = LinearLayout(this)
 
         menu.orientation = LinearLayout.VERTICAL
-        menu.setPadding(40, 40, 40, 40)
-        menu.setBackgroundColor(Color.rgb(5, 8, 14))
+        menu.setPadding(
+            dp(20),
+            dp(18),
+            dp(20),
+            dp(20)
+        )
+        menu.setBackgroundColor(black)
 
         scrollView.addView(
             menu,
@@ -292,17 +535,32 @@ class MainActivity : ComponentActivity() {
 
         val title = TextView(this)
 
-        title.text = "GOD SYSTEM MENU"
-        title.textSize = 22f
-        title.setTextColor(Color.WHITE)
+        title.text = "G O D  //  SYSTEM"
+        title.textSize = 20f
+        title.setTextColor(white)
         title.gravity = Gravity.CENTER
-        title.setPadding(10, 20, 10, 30)
+        title.typeface = Typeface.create(
+            Typeface.MONOSPACE,
+            Typeface.BOLD
+        )
+        title.letterSpacing = 0.12f
+        title.setPadding(10, 20, 10, 8)
+
+        menu.addView(title)
+
+        val subtitle = TextView(this)
+
+        subtitle.text = "CONTROL INTERFACE"
+        subtitle.textSize = 9f
+        subtitle.setTextColor(orange)
+        subtitle.gravity = Gravity.CENTER
+        subtitle.typeface = Typeface.MONOSPACE
 
         menu.addView(
-            title,
+            subtitle,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                dp(30)
             )
         )
 
@@ -351,21 +609,27 @@ class MainActivity : ComponentActivity() {
             openSettings()
         }
 
-        val backButton = Button(this)
-
-        backButton.text = "BACK TO GOD"
-        backButton.setTextColor(Color.WHITE)
+        val backButton = createHudButton("BACK TO GOD")
 
         backButton.setOnClickListener {
             showGodHome()
         }
 
+        val backParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            dp(48)
+        )
+
+        backParams.setMargins(
+            0,
+            dp(18),
+            0,
+            0
+        )
+
         menu.addView(
             backButton,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+            backParams
         )
 
         setContentView(scrollView)
@@ -377,21 +641,27 @@ class MainActivity : ComponentActivity() {
         action: () -> Unit
     ) {
 
-        val button = Button(this)
-
-        button.text = text
-        button.setTextColor(Color.WHITE)
+        val button = createHudButton(text)
 
         button.setOnClickListener {
             action()
         }
 
+        val params = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            dp(48)
+        )
+
+        params.setMargins(
+            0,
+            dp(5),
+            0,
+            dp(5)
+        )
+
         parent.addView(
             button,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+            params
         )
     }
 
@@ -400,37 +670,72 @@ class MainActivity : ComponentActivity() {
         val root = LinearLayout(this)
 
         root.orientation = LinearLayout.VERTICAL
-        root.setPadding(30, 30, 30, 30)
-        root.setBackgroundColor(Color.rgb(3, 7, 14))
+        root.setPadding(
+            dp(18),
+            dp(18),
+            dp(18),
+            dp(18)
+        )
+        root.setBackgroundColor(black)
 
         val title = TextView(this)
 
-        title.text = "GOD CHAT"
-        title.textSize = 22f
-        title.setTextColor(Color.WHITE)
+        title.text = "G O D  //  CHAT"
+        title.textSize = 20f
+        title.setTextColor(white)
         title.gravity = Gravity.CENTER
-        title.setPadding(10, 20, 10, 30)
-
-        root.addView(title)
-
-        val message = EditText(this)
-
-        message.hint = "Ask GOD..."
-        message.setHintTextColor(Color.GRAY)
-        message.setTextColor(Color.WHITE)
+        title.typeface = Typeface.MONOSPACE
 
         root.addView(
-            message,
+            title,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                dp(55)
             )
         )
 
-        val sendButton = Button(this)
+        val line = TextView(this)
 
-        sendButton.text = "SEND"
-        sendButton.setTextColor(Color.WHITE)
+        line.text = "────────────────────────────"
+        line.setTextColor(orange)
+        line.gravity = Gravity.CENTER
+
+        root.addView(line)
+
+        val message = EditText(this)
+
+        message.hint = "ASK GOD..."
+        message.setHintTextColor(Color.rgb(100, 100, 100))
+        message.setTextColor(white)
+        message.textSize = 14f
+        message.typeface = Typeface.MONOSPACE
+        message.setSingleLine(false)
+
+        val messageBackground = GradientDrawable()
+        messageBackground.setColor(panel)
+        messageBackground.setStroke(dp(1), Color.rgb(120, 70, 10))
+        messageBackground.cornerRadius = dp(3).toFloat()
+
+        message.background = messageBackground
+
+        val messageParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            dp(110)
+        )
+
+        messageParams.setMargins(
+            0,
+            dp(20),
+            0,
+            dp(10)
+        )
+
+        root.addView(
+            message,
+            messageParams
+        )
+
+        val sendButton = createHudButton("SEND TO GOD")
 
         sendButton.setOnClickListener {
 
@@ -441,18 +746,181 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        root.addView(sendButton)
+        root.addView(
+            sendButton,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(48)
+            )
+        )
 
-        val backButton = Button(this)
-
-        backButton.text = "BACK TO GOD"
-        backButton.setTextColor(Color.WHITE)
+        val backButton = createHudButton("BACK TO CORE")
 
         backButton.setOnClickListener {
             showGodHome()
         }
 
-        root.addView(backButton)
+        val backParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            dp(48)
+        )
+
+        backParams.setMargins(
+            0,
+            dp(12),
+            0,
+            0
+        )
+
+        root.addView(
+            backButton,
+            backParams
+        )
+
+        setContentView(root)
+    }
+
+    private fun addMenuButton(
+        parent: LinearLayout,
+        text: String,
+        action: () -> Unit
+    ) {
+
+        val button = createHudButton(text)
+
+        button.setOnClickListener {
+            action()
+        }
+
+        val params = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            dp(48)
+        )
+
+        params.setMargins(
+            0,
+            dp(5),
+            0,
+            dp(5)
+        )
+
+        parent.addView(
+            button,
+            params
+        )
+    }
+
+    private fun showChatScreen() {
+
+        val root = LinearLayout(this)
+
+        root.orientation = LinearLayout.VERTICAL
+        root.setPadding(
+            dp(18),
+            dp(18),
+            dp(18),
+            dp(18)
+        )
+        root.setBackgroundColor(black)
+
+        val title = TextView(this)
+
+        title.text = "G O D  //  CHAT"
+        title.textSize = 20f
+        title.setTextColor(white)
+        title.gravity = Gravity.CENTER
+        title.typeface = Typeface.MONOSPACE
+
+        root.addView(
+            title,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(55)
+            )
+        )
+
+        val line = TextView(this)
+
+        line.text = "────────────────────────────"
+        line.setTextColor(orange)
+        line.gravity = Gravity.CENTER
+
+        root.addView(line)
+
+        val message = EditText(this)
+
+        message.hint = "ASK GOD..."
+        message.setHintTextColor(Color.rgb(100, 100, 100))
+        message.setTextColor(white)
+        message.textSize = 14f
+        message.typeface = Typeface.MONOSPACE
+        message.setSingleLine(false)
+
+        val messageBackground = GradientDrawable()
+        messageBackground.setColor(panel)
+        messageBackground.setStroke(dp(1), Color.rgb(120, 70, 10))
+        messageBackground.cornerRadius = dp(3).toFloat()
+
+        message.background = messageBackground
+
+        val messageParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            dp(110)
+        )
+
+        messageParams.setMargins(
+            0,
+            dp(20),
+            0,
+            dp(10)
+        )
+
+        root.addView(
+            message,
+            messageParams
+        )
+
+        val sendButton = createHudButton("SEND TO GOD")
+
+        sendButton.setOnClickListener {
+
+            val text = message.text.toString().trim()
+
+            if (text.isNotEmpty()) {
+                showMessage("Chat input received.")
+            }
+        }
+
+        root.addView(
+            sendButton,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(48)
+            )
+        )
+
+        val backButton = createHudButton("BACK TO CORE")
+
+        backButton.setOnClickListener {
+            showGodHome()
+        }
+
+        val backParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            dp(48)
+        )
+
+        backParams.setMargins(
+            0,
+            dp(12),
+            0,
+            0
+        )
+
+        root.addView(
+            backButton,
+            backParams
+        )
 
         setContentView(root)
     }
@@ -589,6 +1057,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun dp(value: Int): Int {
+
+        return (
+            value *
+                resources.displayMetrics.density
+            ).toInt()
     }
 
     override fun onDestroy() {
