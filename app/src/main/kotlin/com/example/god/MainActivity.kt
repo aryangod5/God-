@@ -44,6 +44,9 @@ class MainActivity : AppCompatActivity() {
     private var voiceRecognizedText: TextView? = null
     private var pendingVoiceStart = false
 
+    // Central GOD core.
+    private var godCoreView: GodCoreView? = null
+
     private val permissionLauncher =
         registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
@@ -134,7 +137,18 @@ class MainActivity : AppCompatActivity() {
                     state: AIState
                 ) {
                     runOnUiThread {
+
+                        godCoreView?.setAIState(state)
+
                         updateVoiceState(state)
+                    }
+                }
+
+                override fun onVoiceLevel(
+                    level: Float
+                ) {
+                    runOnUiThread {
+                        godCoreView?.setVoiceLevel(level)
                     }
                 }
 
@@ -156,6 +170,8 @@ class MainActivity : AppCompatActivity() {
                     message: String
                 ) {
                     runOnUiThread {
+
+                        godCoreView?.setVoiceLevel(0f)
 
                         voiceStateText?.text =
                             "ERROR\n\n$message"
@@ -200,8 +216,7 @@ class MainActivity : AppCompatActivity() {
 
         return LinearLayout(this).apply {
 
-            orientation =
-                LinearLayout.VERTICAL
+            orientation = LinearLayout.VERTICAL
 
             setPadding(
                 28,
@@ -664,8 +679,6 @@ class MainActivity : AppCompatActivity() {
                 text = "⋮"
                 textSize = 32f
                 gravity = Gravity.CENTER
-
-                // White UI text. Orange is used for active graphics.
                 setTextColor(white)
 
                 setPadding(
@@ -686,11 +699,11 @@ class MainActivity : AppCompatActivity() {
 
         addSpace(root, 5)
 
-        val core =
+        godCoreView =
             GodCoreView(this)
 
         root.addView(
-            core,
+            godCoreView,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 0,
@@ -798,19 +811,4 @@ class MainActivity : AppCompatActivity() {
 
         if (
             ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-
-            pendingVoiceStart = true
-
-            permissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.RECORD_AUDIO
-                )
-            )
-
-            return
-        }
-        
+          
