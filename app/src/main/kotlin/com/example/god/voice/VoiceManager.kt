@@ -9,6 +9,8 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import java.util.Locale
+import kotlin.math.max
+import kotlin.math.min
 
 enum class AIState {
     OFFLINE,
@@ -31,6 +33,10 @@ class VoiceManager(
             state: AIState
         )
 
+        fun onVoiceLevel(
+            level: Float
+        )
+
         fun onTextRecognized(
             text: String
         )
@@ -40,13 +46,14 @@ class VoiceManager(
         )
     }
 
-    private var speechRecognizer:
-            SpeechRecognizer? = null
-
-    private var textToSpeech:
-            TextToSpeech? = null
+    private var speechRecognizer: SpeechRecognizer? = null
+    private var textToSpeech: TextToSpeech? = null
 
     private var isListening = false
+    private var isReleased = false
+
+    // Smoothed microphone level.
+    private var smoothedVoiceLevel = 0f
 
     init {
         initializeTextToSpeech()
@@ -68,9 +75,11 @@ class VoiceManager(
                 context
             ) { status ->
 
-                if (status ==
-                    TextToSpeech.SUCCESS
-                ) {
+                if (isReleased) {
+                    return@TextToSpeech
+                }
+
+                if (status == TextToSpeech.SUCCESS) {
 
                     val result =
                         textToSpeech?.setLanguage(
@@ -104,11 +113,16 @@ class VoiceManager(
             }
 
         textToSpeech?.setOnUtteranceProgressListener(
-            object : UtteranceProgressListener() {
+            object :
+                UtteranceProgressListener() {
 
                 override fun onStart(
                     utteranceId: String?
                 ) {
+
+                    if (isReleased) {
+                        return
+                    }
 
                     listener.onStateChanged(
                         AIState.SPEAKING
@@ -119,6 +133,14 @@ class VoiceManager(
                     utteranceId: String?
                 ) {
 
+                    if (isReleased) {
+                        return
+                    }
+
+                    listener.onVoiceLevel(
+                        0f
+                    )
+
                     listener.onStateChanged(
                         AIState.IDLE
                     )
@@ -127,6 +149,14 @@ class VoiceManager(
                 override fun onError(
                     utteranceId: String?
                 ) {
+
+                    if (isReleased) {
+                        return
+                    }
+
+                    listener.onVoiceLevel(
+                        0f
+                    )
 
                     listener.onStateChanged(
                         AIState.ERROR
@@ -147,9 +177,10 @@ class VoiceManager(
     private fun initializeSpeechRecognizer() {
 
         if (
-            !SpeechRecognizer.isRecognitionAvailable(
-                context
-            )
+            !SpeechRecognizer
+                .isRecognitionAvailable(
+                    context
+                )
         ) {
 
             listener.onStateChanged(
@@ -164,16 +195,24 @@ class VoiceManager(
         }
 
         speechRecognizer =
-            SpeechRecognizer.createSpeechRecognizer(
-                context
-            )
+            SpeechRecognizer
+                .createSpeechRecognizer(
+                    context
+                )
 
         speechRecognizer?.setRecognitionListener(
-            object : RecognitionListener {
+            object :
+                RecognitionListener {
 
                 override fun onReadyForSpeech(
                     params: Bundle?
                 ) {
+
+                    if (isReleased) {
+                        return
+                    }
+
+                    resetVoiceLevel()
 
                     listener.onStateChanged(
                         AIState.LISTENING
@@ -181,6 +220,10 @@ class VoiceManager(
                 }
 
                 override fun onBeginningOfSpeech() {
+
+                    if (isReleased) {
+                        return
+                    }
 
                     listener.onStateChanged(
                         AIState.LISTENING
@@ -190,9 +233,56 @@ class VoiceManager(
                 override fun onRmsChanged(
                     rmsdB: Float
                 ) {
-                    // Audio level is available here.
-                    // The visual waveform will use this
-                    // in a later step.
+
+                    if (
+                        isReleased ||
+                        !isListening
+                    ) {
+                        return
+                    }
+
+                    /*
+                     * Android supplies RMS microphone
+                     * information in decibels.
+                     *
+                     * We normalize it into 0.0 - 1.0
+                     * and smooth it so the GOD core
+                     * responds naturally instead of
+                     * flickering.
+                     */
+
+                    val normalized =
+                        normalizeRms(
+                            rmsdB
+                        )
+
+                    val smoothing =
+                        if (
+                            normalized >
+                            smoothedVoiceLevel
+                        ) {
+                            0.35f
+                        } else {
+                            0.12f
+                        }
+
+                    smoothedVoiceLevel +=
+                        (
+                            normalized -
+                                    smoothedVoiceLevel
+                            ) *
+                                smoothing
+
+                    smoothedVoiceLevel =
+                        clamp(
+                            smoothedVoiceLevel,
+                            0f,
+                            1f
+                        )
+
+                    listener.onVoiceLevel(
+                        smoothedVoiceLevel
+                    )
                 }
 
                 override fun onBufferReceived(
@@ -201,6 +291,12 @@ class VoiceManager(
                 }
 
                 override fun onEndOfSpeech() {
+
+                    if (isReleased) {
+                        return
+                    }
+
+                    resetVoiceLevel()
 
                     listener.onStateChanged(
                         AIState.PROCESSING
@@ -211,7 +307,13 @@ class VoiceManager(
                     error: Int
                 ) {
 
+                    if (isReleased) {
+                        return
+                    }
+
                     isListening = false
+
+                    resetVoiceLevel()
 
                     listener.onStateChanged(
                         AIState.IDLE
@@ -260,7 +362,13 @@ class VoiceManager(
                     results: Bundle?
                 ) {
 
+                    if (isReleased) {
+                        return
+                    }
+
                     isListening = false
+
+                    resetVoiceLevel()
 
                     val matches =
                         results?.getStringArrayList(
@@ -298,20 +406,125 @@ class VoiceManager(
                 override fun onPartialResults(
                     partialResults: Bundle?
                 ) {
+                    // Reserved for future live transcription.
+                }
+
+                override fun onEvent(
+                    eventType: Int,
+                    params: Bundle?
+                ) {
+                    // Not currently required.
                 }
             }
         )
     }
 
     // =========================================================
-    // START LISTENING
+    // RMS NORMALIZATION
+    // =========================================================
+
+    private fun normalizeRms(
+        rmsdB: Float
+    ): Float {
+
+        /*
+         * Android's RMS value is commonly reported
+         * around the negative dB range.
+         *
+         * We deliberately use a broad practical
+         * range so normal speech produces visible
+         * but controlled movement.
+         */
+
+        val minimumDb =
+            -55f
+
+        val maximumDb =
+            0f
+
+        val bounded =
+            max(
+                minimumDb,
+                min(
+                    maximumDb,
+                    rmsdB
+                )
+            )
+
+        val normalized =
+            (
+                bounded -
+                        minimumDb
+                ) /
+                    (
+                        maximumDb -
+                                minimumDb
+                        )
+
+        /*
+         * Give very quiet microphone noise a
+         * softer response and prevent tiny
+         * background fluctuations from making
+         * the core glow constantly.
+         */
+
+        val adjusted =
+            when {
+
+                normalized < 0.08f ->
+                    0f
+
+                normalized < 0.20f ->
+                    normalized * 0.35f
+
+                else ->
+                    normalized
+            }
+
+        return clamp(
+            adjusted,
+            0f,
+            1f
+        )
+    }
+
+    private fun clamp(
+        value: Float,
+        minimum: Float,
+        maximum: Float
+    ): Float {
+
+        return max(
+            minimum,
+            min(
+                maximum,
+                value
+            )
+        )
+    }
+
+    private fun resetVoiceLevel() {
+
+        smoothedVoiceLevel = 0f
+
+        if (!isReleased) {
+            listener.onVoiceLevel(
+                0f
+            )
+        }
+    }
+
+    // =========================================================
+    // LISTENING
     // =========================================================
 
     fun startListening() {
 
-        if (
-            speechRecognizer == null
-        ) {
+        if (isReleased) {
+            return
+        }
+
+        if (speechRecognizer == null) {
 
             listener.onStateChanged(
                 AIState.OFFLINE
@@ -358,6 +571,8 @@ class VoiceManager(
 
         try {
 
+            resetVoiceLevel()
+
             isListening = true
 
             listener.onStateChanged(
@@ -368,9 +583,13 @@ class VoiceManager(
                 intent
             )
 
-        } catch (exception: Exception) {
+        } catch (
+            exception: Exception
+        ) {
 
             isListening = false
+
+            resetVoiceLevel()
 
             listener.onStateChanged(
                 AIState.ERROR
@@ -382,10 +601,6 @@ class VoiceManager(
         }
     }
 
-    // =========================================================
-    // STOP LISTENING
-    // =========================================================
-
     fun stopListening() {
 
         if (!isListening) {
@@ -393,33 +608,32 @@ class VoiceManager(
         }
 
         try {
-
             speechRecognizer?.stopListening()
-
         } catch (_: Exception) {
         }
 
         isListening = false
-    }
 
-    // =========================================================
-    // CANCEL LISTENING
-    // =========================================================
+        resetVoiceLevel()
+    }
 
     fun cancelListening() {
 
         try {
-
             speechRecognizer?.cancel()
-
         } catch (_: Exception) {
         }
 
         isListening = false
 
-        listener.onStateChanged(
-            AIState.IDLE
-        )
+        resetVoiceLevel()
+
+        if (!isReleased) {
+
+            listener.onStateChanged(
+                AIState.IDLE
+            )
+        }
     }
 
     // =========================================================
@@ -447,7 +661,9 @@ class VoiceManager(
         val command =
             text
                 .trim()
-                .lowercase(Locale.getDefault())
+                .lowercase(
+                    Locale.getDefault()
+                )
 
         return when {
 
@@ -458,7 +674,6 @@ class VoiceManager(
                 "Hello, Master. GOD is online and ready."
 
             command.contains("who are you") ||
-
                     command.contains("what are you") ->
 
                 "I am GOD, your personal AI assistant."
@@ -497,10 +712,9 @@ class VoiceManager(
                 "You're welcome, Master."
 
             command.contains("stop") ||
-                    command.contains("cancel") -> {
+                    command.contains("cancel") ->
 
                 "Command cancelled."
-            }
 
             command.contains("settings") ->
 
@@ -518,12 +732,16 @@ class VoiceManager(
     }
 
     // =========================================================
-    // SPEAK
+    // SPEAKING
     // =========================================================
 
     private fun speak(
         text: String
     ) {
+
+        if (isReleased) {
+            return
+        }
 
         val tts =
             textToSpeech
@@ -554,7 +772,9 @@ class VoiceManager(
                 "GOD_RESPONSE"
             )
 
-        } catch (exception: Exception) {
+        } catch (
+            exception: Exception
+        ) {
 
             listener.onStateChanged(
                 AIState.ERROR
@@ -566,22 +786,23 @@ class VoiceManager(
         }
     }
 
-    // =========================================================
-    // STOP SPEAKING
-    // =========================================================
-
     fun stopSpeaking() {
 
         try {
-
             textToSpeech?.stop()
-
         } catch (_: Exception) {
         }
 
-        listener.onStateChanged(
-            AIState.IDLE
-        )
+        if (!isReleased) {
+
+            listener.onVoiceLevel(
+                0f
+            )
+
+            listener.onStateChanged(
+                AIState.IDLE
+            )
+        }
     }
 
     // =========================================================
@@ -589,6 +810,16 @@ class VoiceManager(
     // =========================================================
 
     fun release() {
+
+        if (isReleased) {
+            return
+        }
+
+        isReleased = true
+
+        isListening = false
+
+        smoothedVoiceLevel = 0f
 
         try {
             speechRecognizer?.cancel()
@@ -604,16 +835,4 @@ class VoiceManager(
 
         try {
             textToSpeech?.stop()
-        } catch (_: Exception) {
-        }
-
-        try {
-            textToSpeech?.shutdown()
-        } catch (_: Exception) {
-        }
-
-        textToSpeech = null
-
-        isListening = false
-    }
-}
+        } catc
