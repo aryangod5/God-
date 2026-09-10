@@ -137,7 +137,7 @@ class GodChatActivity : AppCompatActivity() {
 
         val title = TextView(this).apply {
             this.text = label
-            setTextColor = if (user) white else orange
+            setTextColor(if (user) Color.WHITE else Color.rgb(255, 145, 0))
             textSize = 11f
             setTypeface(null, android.graphics.Typeface.BOLD)
         }
