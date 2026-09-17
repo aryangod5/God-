@@ -16,6 +16,7 @@ import android.widget.*
 import androidx.activity.ComponentActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.god.gesture.GestureControlService
 import com.example.god.voice.AIState
 import com.example.god.voice.VoiceManager
 import com.example.god.voice.WakeWordService
@@ -38,8 +39,9 @@ class MainActivity : ComponentActivity() {
                     "WAKE" -> startVoice()
                     "CANCEL" -> voice?.cancelListening()
                     "SELECT" -> godUi?.showNotice("GESTURE", "SELECT")
-                    "SWIPE_LEFT" -> godUi?.showNotice("GESTURE", "PREVIOUS PANEL")
-                    "SWIPE_RIGHT" -> godUi?.showNotice("GESTURE", "NEXT PANEL")
+                    "SWIPE_LEFT" -> godUi?.showNotice("GESTURE", "PREVIOUS")
+                    "SWIPE_RIGHT" -> godUi?.showNotice("GESTURE", "NEXT")
+                    "ERROR" -> godUi?.showNotice("GESTURE ERROR", intent?.getStringExtra("message")?.take(80).orEmpty())
                 }
             }
         }
@@ -82,9 +84,9 @@ class MainActivity : ComponentActivity() {
     private fun startWakeWordIfConfigured() {
         if (android.os.Build.VERSION.SDK_INT >= 23 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return
-        val key = getSharedPreferences(WakeWordService.PREFS, MODE_PRIVATE)
-            .getString(WakeWordService.KEY_ACCESS, "").orEmpty()
-        if (key.isBlank()) return
+        val enabled = getSharedPreferences(WakeWordService.PREFS, MODE_PRIVATE)
+            .getBoolean(WakeWordService.KEY_ENABLED, false)
+        if (!enabled) return
         try {
             val intent = Intent(this, WakeWordService::class.java).setAction(WakeWordService.ACTION_START)
             if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
@@ -140,6 +142,18 @@ class MainActivity : ComponentActivity() {
 
     private fun handleUserText(text: String) {
         val lower = text.lowercase().trim()
+
+        when (GestureIntentResolver.resolve(text).intent) {
+            GestureIntentResolver.Intent.ENABLE -> {
+                startGestureControl()
+                return
+            }
+            GestureIntentResolver.Intent.DISABLE -> {
+                stopGestureControl()
+                return
+            }
+            GestureIntentResolver.Intent.NONE -> Unit
+        }
 
         if (lower.startsWith("remember ")) {
             val value = text.substringAfter("remember ").trim()
@@ -308,35 +322,52 @@ class MainActivity : ComponentActivity() {
         setContentView(root)
     }
 
-    // Gesture control is an internal control channel, not a user-facing feature button.
-    private fun showGestureInternal() {
-        startActivity(Intent(this, GestureControlActivity::class.java))
+    private fun startGestureControl() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 103)
+            return
+        }
+        getSharedPreferences(GestureControlService.PREFS, MODE_PRIVATE).edit()
+            .putBoolean(GestureControlService.KEY_ENABLED, true).apply()
+        try {
+            val intent = Intent(this, GestureControlService::class.java).setAction(GestureControlService.ACTION_START)
+            if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
+            godUi?.showNotice("GESTURE CONTROL", "ENABLED")
+        } catch (e: Exception) {
+            godUi?.showNotice("GESTURE CONTROL", "ANDROID BLOCKED START")
+        }
+    }
+
+    private fun stopGestureControl() {
+        getSharedPreferences(GestureControlService.PREFS, MODE_PRIVATE).edit()
+            .putBoolean(GestureControlService.KEY_ENABLED, false).apply()
+        stopService(Intent(this, GestureControlService::class.java))
+        godUi?.showNotice("GESTURE CONTROL", "DISABLED")
     }
 
     private fun showSettings() {
         val root = base("GOD // SETTINGS")
         root.addView(TextView(this).apply {
-            text = "WAKE WORD\nThe current wake-word engine requires its own local engine credential. This is not an AI/API key and is used only for the wake-word engine."
+            text = "GESTURE CONTROL\nUse natural language to enable or disable gesture control. When enabled, GOD can use the camera gesture engine and, with Accessibility authorization, act on the current Android screen."
             setTextColor(Color.WHITE); textSize = 13f
-        }, LinearLayout.LayoutParams(-1, dp(90)))
-
-        val wakeKey = EditText(this).apply {
-            hint = "Wake-word engine credential"
-            setText(getSharedPreferences(WakeWordService.PREFS, MODE_PRIVATE)
-                .getString(WakeWordService.KEY_ACCESS, "").orEmpty())
-            setTextColor(Color.WHITE); setHintTextColor(Color.GRAY)
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        root.addView(wakeKey, LinearLayout.LayoutParams(-1, dp(60)))
-        root.addView(btn("SAVE + ENABLE HEY GOD") {
-            getSharedPreferences(WakeWordService.PREFS, MODE_PRIVATE).edit()
-                .putString(WakeWordService.KEY_ACCESS, wakeKey.text.toString().trim()).apply()
+        }, LinearLayout.LayoutParams(-1, dp(100)))
+        root.addView(btn("ENABLE GESTURE CONTROL") { startGestureControl() }, LinearLayout.LayoutParams(-1, dp(55)))
+        root.addView(btn("DISABLE GESTURE CONTROL") { stopGestureControl() }, LinearLayout.LayoutParams(-1, dp(55)))
+        root.addView(btn("ANDROID ACCESSIBILITY SETUP") {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }, LinearLayout.LayoutParams(-1, dp(55)))
+        root.addView(btn("GESTURE DIAGNOSTIC PREVIEW") {
+            startActivity(Intent(this, GestureControlActivity::class.java))
+        }, LinearLayout.LayoutParams(-1, dp(55)))
+        root.addView(btn("ENABLE HEY GOD") {
+            getSharedPreferences(WakeWordService.PREFS, MODE_PRIVATE).edit().putBoolean(WakeWordService.KEY_ENABLED, true).apply()
             startWakeWordIfConfigured()
-            godUi?.showNotice("WAKE WORD", "HEY GOD ENGINE ENABLED")
+            godUi?.showNotice("WAKE WORD", "ENABLED")
         }, LinearLayout.LayoutParams(-1, dp(55)))
         root.addView(btn("STOP HEY GOD") {
+            getSharedPreferences(WakeWordService.PREFS, MODE_PRIVATE).edit().putBoolean(WakeWordService.KEY_ENABLED, false).apply()
             stopService(Intent(this, WakeWordService::class.java))
-            godUi?.showNotice("WAKE WORD", "ENGINE STOPPED")
+            godUi?.showNotice("WAKE WORD", "STOPPED")
         }, LinearLayout.LayoutParams(-1, dp(55)))
         root.addView(btn("CORE ANIMATION: ON") {
             godUi?.showNotice("SETTINGS", "CORE ACTIVE")
@@ -375,6 +406,9 @@ class MainActivity : ComponentActivity() {
         if (requestCode == micCode && results.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
             voice?.startListening()
             startWakeWordIfConfigured()
+        }
+        if (requestCode == 103 && results.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            startGestureControl()
         }
     }
 
