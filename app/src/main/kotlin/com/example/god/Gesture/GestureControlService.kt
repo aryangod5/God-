@@ -7,7 +7,7 @@ import android.content.Intent
 import android.os.Build
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
-import androidx.camera.lifecycle.LifecycleService
+import androidx.lifecycle.LifecycleService
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import com.example.god.R
@@ -79,6 +79,7 @@ class GestureControlService : LifecycleService() {
                         sendBroadcast(Intent(ACTION_GESTURE).setPackage(packageName).putExtra("action", "ERROR").putExtra("message", error.message ?: "Gesture engine error"))
                     }
                     .build()
+            )
             bindCamera()
         } catch (_: Exception) {
             stopEngine()
