@@ -44,4 +44,5 @@
     <string name="ai_test">Test Connection</string>
     <string name="ai_save">Save AI Configuration</string>
 
+    <string name="accessibility_service_description">GOD uses Android accessibility controls to perform user-requested actions on the current screen.</string>
 </resources>
